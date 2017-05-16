@@ -4,6 +4,7 @@
 #include "ip.h"
 #include "sock.h"
 #include <sys/time.h>
+#include "checksum.h"
 //
 // ICMP -- Internet控制报文协议.
 // 
@@ -49,7 +50,7 @@ icmpv4_reply(struct sk_buff *skb)
 	icmp = (struct icmp_v4 *)skb->data;
 	icmp->type = ICMP_V4_REPLY;				   // ICMP回显应答 
 	icmp->csum = 0;
-	icmp->csum = checksum(icmp, icmp_len, 0);  // 计算校验和
+	icmp->csum = checksum(icmp, icmp_len, 0);  /* 计算校验和 */
 
 	skb->protocol = ICMPV4;
 	sk.daddr = iphdr->saddr;	// 对方发过来的源ip地址变成了目的ip地址

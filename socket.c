@@ -43,7 +43,7 @@ socket_debug()
 static struct socket *
 alloc_socket(pid_t pid)
 {
-	/* todo: 这里需要想出一种方法使得我们的fd不会覆盖kernel的fd
+	/* todo: 这里需要想出一种方法使得我们的fd不会和kernel的fd重叠,
 	 所以这里的fd设置得非常大. */
 	static int fd = 4097;
 	struct socket *sock = malloc(sizeof(struct socket));
@@ -55,7 +55,6 @@ alloc_socket(pid_t pid)
 	sock->ops = NULL;
 	sock->flags = O_RDWR;
 	wait_init(&sock->sleep);
-
 	return sock;
 }
 
@@ -90,7 +89,7 @@ get_socket(pid_t pid, int fd)
 
 /* socket_lookup 根据协议类型,两端的端口号寻找相对应的socket */
 struct socket *
-	socket_lookup(int protocol, uint16_t remoteport, uint16_t localport)
+	socket_lookup(uint16_t remoteport, uint16_t localport)
 {
 	struct list_head *item;
 	struct socket *sock = NULL;
@@ -102,8 +101,8 @@ struct socket *
 		sock = list_entry(item, struct socket, list);
 		if (sock == NULL || sock->sk == NULL) continue;
 		sk = sock->sk;
-		if (sk->sport == localport && sk->dport == remoteport && 
-			sk->protocol == protocol) {  /* 协议类型,源端口和目的端口可以唯一确定一对连接 */
+		if (sk->sport == localport && sk->dport == remoteport) { 
+			/* 协议类型,源端口和目的端口可以唯一确定一对连接 */
 			goto found;
 		}
 	}
@@ -115,11 +114,15 @@ found:
 
 
 
-/* 以下的一系列函数和我们经常使用的函数非常类似,确实,这里确实是在试图还原一系列的网络系统调用.
- * 下面的函数一般都是调用sock->ops->xxx,ops指的是操纵socket的一系列函数.
- * 这里的xxx,函数接口和我们经常使用的基本上是一致的.
- * */
+/* 
+ 以下的一系列函数和我们经常使用的函数非常类似,确实,这里确实是在试图还原一系列的网络系统调用.
+ 下面的函数一般都是调用sock->ops->xxx,ops指的是操纵socket的一系列函数.这里的xxx,
+ 函数接口和我们经常使用的基本上是一致的. 
+ 
+ 这里可以保证,传入的参数全部是有效的.所以可以删除掉错误检查的代码.
+ */
 
+/* _socket函数构建一个socket,并且将其加入到sockets这个链表之中 */
 int
 _socket(pid_t pid, int domain, int type, int protocol)
 {
@@ -137,23 +140,38 @@ _socket(pid_t pid, int domain, int type, int protocol)
 		goto abort_socket;
 	}
 
-	if (family->create(sock, protocol) != 0) {
+	if (family->create(sock, protocol) != 0) {	/* 构建一个sock,这里的create
+										在这个栈中,实际调用inet_create函数 */
 		print_err("Creating domain failed\n");
 		goto abort_socket;
 	}
+
 	pthread_rwlock_wrlock(&slock);
 	list_add_tail(&sock->list, &sockets); /* 将新构建的socket放入sockets链中 */
     sock_amount++;
 	pthread_rwlock_unlock(&slock);
-	return sock->fd;
+	return sock->fd;					 /* sock->fd只是一个标志而已 */
 
 abort_socket:
 	socket_free(sock);
 	return -1;
 }
 
+int 
+_bind(pid_t pid, int sockfd, struct sockaddr_in *skaddr)
+{
+	struct socket *sock;
+
+	if ((sock = get_socket(pid, sockfd)) == NULL) {
+		print_err("Bind: could not find socket (fd %d) for binding (pid %d)\n",
+			sockfd, pid);
+		return -1;
+	}
+	return sock->ops->bind(sock, skaddr);	/* 实际上调用了inet_bind */
+}
+
 int
-_connect(pid_t pid, int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+_connect(pid_t pid, int sockfd, const struct sockaddr_in *addr)
 {
 	struct socket *sock;
 
@@ -162,7 +180,7 @@ _connect(pid_t pid, int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 		sockfd, pid);
 		return -1;
 	}
-	return sock->ops->connect(sock, addr, addrlen, 0);
+	return sock->ops->connect(sock, addr);
 }
 
 int 
@@ -170,7 +188,7 @@ _write(pid_t pid, int sockfd, const void *buf, const unsigned int count)
 {
 	struct socket *sock;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
-		print_err("Write: could not find socket (fd %d) for connection (pid %d)\n",
+		print_err("Write: could not find socket (fd %d && pid %d)\n",
 			sockfd, pid);
 		return -1;
 	}
@@ -182,7 +200,7 @@ _read(pid_t pid, int sockfd, void* buf, const unsigned int count)
 {
 	struct socket *sock;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
-		print_err("Read: could not find socket (fd %d) for connection (pid %d)\n",
+		print_err("Read: could not find socket (fd %d && pid %d)\n",
 			sockfd, pid);
 		return -1;
 	}
@@ -194,7 +212,7 @@ _close(pid_t pid, int sockfd)
 {
 	struct socket *sock;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
-		print_err("Close: could not find socket (fd %d) for connection (pid %d)\n",
+		print_err("Close: could not find socket (fd %d && pid %d)\n",
 			sockfd, pid);
 		return -1;
 	}
@@ -206,7 +224,7 @@ _poll(pid_t pid, int sockfd)
 {
 	struct socket *sock;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
-		print_err("Poll: could not find socket (fd %d) for connection (pid %d)\n",
+		print_err("Poll: could not find socket (fd %d && pid %d)\n",
 			sockfd, pid);
 		return -1;
 	}
@@ -218,7 +236,7 @@ _fcntl(pid_t pid, int fildes, int cmd, ...)
 {
 	struct socket *sock;
 	if ((sock = get_socket(pid, fildes)) == NULL) {
-		print_err("Poll: could not find socket (fd %d) for connection (pid %d)\n",
+		print_err("fcntl: could not find socket (fd %d && pid %d)\n",
 			fildes, pid);
 		return -1;
 	}
@@ -238,15 +256,42 @@ _fcntl(pid_t pid, int fildes, int cmd, ...)
 	return -1;
 }
 
-int 
-_bind(pid_t pid, int sockfd, struct sockaddr *skaddr, int addrlen)
+
+int
+_listen(pid_t pid, int sockfd, int backlog)
 {
 	int err = -1;
 	struct socket *sock;
-	if (!sock || !skaddr) goto out;
-	sock = get_socket(pid, sockfd);
-	if (sock->ops)
-		err = sock->ops->bind(sock, skaddr, addrlen);
+	if (!sock || backlog < 0) goto out;
+	if ((sock = get_socket(pid, sockfd)) == NULL) {
+		print_err("listen: could not find socket (fd %d) for \
+			listening (pid %d)\n",
+			sockfd, pid);
+		return -1;
+	}
+	return sock->ops->listen(sock, backlog);
 out:
 	return err;
+}
+
+struct socket *
+	_accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr)
+{
+	struct socket * sock, *newsock;
+	int err = 0;
+	if (!sock) goto out;
+	if ((sock = get_socket(pid, sockfd)) == NULL) {
+		print_err("Accept: could not find socket (fd %d && pid %d)\n",
+			sockfd, pid);
+		return NULL;
+	}
+	newsock = alloc_socket(pid);
+	newsock->ops = sock->ops;
+
+	err = sock->ops->accept(sock, newsock, skaddr);
+	if (err < 0) {
+		free(newsock);
+	}
+out:
+	return newsock;
 }

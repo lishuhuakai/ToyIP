@@ -4,7 +4,7 @@
 #include "tcp.h"
 #include "udp.h"
 #include "icmpv4.h"
-
+#include "checksum.h"
 //
 // ip_input.c 主要用于接收ip数据包.
 // 

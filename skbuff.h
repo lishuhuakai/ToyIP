@@ -12,10 +12,10 @@ struct sk_buff {
 	struct list_head list;
 	struct rtentry *rt;
 	struct netdev *dev;
-	int refcnt;				// 引用计数
+	int refcnt;				/* 引用计数 */
 	uint16_t protocol;
 	uint32_t len;
-	uint32_t dlen;			// 数据的大小,不包含头部(以太网,ip,tcp头部)
+	uint32_t dlen;			/* 数据的大小,不包含头部(以太网,ip,tcp头部) */
 	uint32_t seq;
 	uint32_t end_seq;
 	uint8_t *end;
@@ -26,8 +26,8 @@ struct sk_buff {
 
 struct sk_buff_head {
 	struct list_head head;
-	uint32_t qlen;				// 记录链表的长度
-	pthread_mutex_t lock;		// 锁,避免争用
+	uint32_t qlen;				/* 记录链表的长度 */
+	pthread_mutex_t lock;		/* 锁,避免争用 */
 };
 
 struct sk_buff *alloc_skb(unsigned int size);
@@ -58,7 +58,7 @@ skb_queue_add(struct sk_buff_head *list, struct sk_buff *new_item, struct sk_buf
 	list->qlen += 1;
 }
 
-// skb_queue_tail 将skb添加到list的尾部
+/* skb_queue_tail 将skb添加到list的尾部 */
 static inline void
 skb_queue_tail(struct sk_buff_head *list, struct sk_buff *new_item)
 {
@@ -66,7 +66,7 @@ skb_queue_tail(struct sk_buff_head *list, struct sk_buff *new_item)
 	list->qlen += 1;
 }
 
-// skb_dequeue 用于丢弃队列的首项
+/* skb_dequeue 用于丢弃队列的首项 */
 static inline struct sk_buff *
 skb_dequeue(struct sk_buff_head *list)
 {

@@ -3,7 +3,7 @@
 #include "socket.h"
 
 struct sock *
-	sk_alloc(struct net_ops *ops, int protocol) 
+sk_alloc(struct net_ops *ops, int protocol) 
 {
 	struct sock *sk;
 	sk = ops->alloc_sock(protocol);
@@ -11,6 +11,7 @@ struct sock *
 	return sk;
 }
 
+/* sock_init_data用于初始化sk,并且将sk记录到sock中 */
 void
 sock_init_data(struct socket *sock, struct sock *sk)
 {
@@ -23,7 +24,7 @@ sock_init_data(struct socket *sock, struct sock *sk)
 	pthread_mutex_init(&sk->lock, NULL);	/* 初始化锁 */
 
 	sk->poll_events = 0;
-	sk->ops->init(sk);
+	sk->ops->init(sk);						/* net_ops做初始化工作 */
 }
 
 void 

@@ -1,15 +1,14 @@
 #include "udp.h"
 #include "checksum.h"
-#include "time.h"
 
 struct net_ops udp_ops = {
 	.alloc_sock = &udp_alloc_sock,
 	.init = &udp_init_sock,
-	.write = &udp_write,
+	//.send = &udp_write,
 	.connect = &udp_connect,
 	//.sendto = &udp_sendto,
 	//.recvfrom = &udp_recvfrom,
-	.read = &udp_read,
+	//.read = &udp_read,
 	.close = &udp_close,
 };
 
@@ -25,9 +24,7 @@ udp_recvfrom()
 
 }
 
-/* genarate_udp_port 随机产生udp接口.
- * tcp和udp的接口系统是独立的.
- * */
+/* genarate_udp_port 随机产生udp接口.tcp和udp的接口系统是独立的. */
 static
 uint16_t 
 generate_udp_port()
@@ -38,15 +35,16 @@ generate_udp_port()
 }
 
 int
-udp_connect(struct sock *sk, const struct sockaddr *addr, int addrlen, int flags)
+udp_connect(struct sock *sk, const struct sockaddr_in *addr)
 {
-	/* udp没有三次握手的过程,在这里只需要做一些检查,
-	 * 如果没有错误,就记录对端的IP地址和端口号,立即返回. */
+	/* udp没有三次握手的过程,在这里只需要做一些检查, 
+	如果没有错误,就记录对端的IP地址和端口号,立即返回. */
 	extern char * stackaddr;
 
-	/* todo: 对ip地址什么的做检查 */
-	uint16_t dport = ((struct sockaddr_in *)addr)->sin_port;
-	uint32_t daddr = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
+	/* todo: 对ip地址做检查 */
+	
+	uint16_t dport = addr->sin_port;
+	uint32_t daddr = addr->sin_addr.s_addr;
 	sk->dport = ntohs(dport);
 	sk->daddr = ntohl(daddr);
 	sk->saddr = parse_ipv4_string(stackaddr);
@@ -61,22 +59,24 @@ udp_close(struct sock *sk)
 	return 0;
 }
 
-void 
+int
 udp_init_sock(struct sock *sk)
 {
 
+	return 0;
 }
 
 
 int
 udp_write(struct sock *sk, const void *buf, int len)
 {
-	struct udp_sock *usk = udp_sock(sk);
+	// tofix:
+	struct udp_sock *usk; // = udp_sock(sk);
 
 	if (len < 0 || len > UDP_MAX_BUFSZ)
 		return -1;
 	/* 可以保证,调用udp_send时的数据长度在正常范围内.可以发送长度为0的udp数据报. */
-	return udp_send(usk, buf, len);
+	return udp_send(&usk->sk, buf, len);
 }
 
 static struct sk_buff *
@@ -140,7 +140,7 @@ udp_recv(struct sk_buff *skb, struct iphdr *iphd, struct udphdr *udphd)
 		goto drop;
 	}
 
-	list_add_tail(&skb->list, &sk->receive_queue);	/* 放入接收队列 */
+	list_add_tail(&skb->list, &sk->receive_queue.head);	/* 放入接收队列 */
 	sk->ops->recv_notify(sk);
 	//free_sock(sk);
 	return;
@@ -192,7 +192,8 @@ int
 udp_read(struct sock *sk, void *buf, int len)
 {
 	/* udp可以读0个字节. */
-	struct udp_sock *usk = udp_sk(sk);
+	// tofix:
+	struct udp_sock *usk; //udp_sk(sk);
 	if (len < 0)
 		return -1;
 	return udp_receive(usk, buf, len);

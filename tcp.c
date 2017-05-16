@@ -16,43 +16,33 @@ const char *tcp_dbg_states[] = {
 };
 #endif
 
-struct net_ops tcp_ops = {
-	.alloc_sock = &tcp_alloc_sock,
-	.init = &tcp_v4_init_sock,
-	.connect = &tcp_v4_connect,
-	.disconnect = &tcp_disconnect,
-	.write = &tcp_write,
-	.read = &tcp_read,
-	.recv_notify = &tcp_recv_notify,	/* recv_notify用于唤醒调用该协议栈的应用程序 */
-	.close = &tcp_close,
-	.abort = &tcp_abort,
-};
-
-void tcp_init() 
-{
-}
 
 /* tcp_init_segment 将网络字节序的各项全部转化为主机字节序 */
 static void
-tcp_init_segment(struct tcphdr *th, struct iphdr *ih, struct sk_buff *skb) {
-	th->sport = ntohs(th->sport);		// 16位源端口号
-	th->dport = ntohs(th->dport);		// 16位目的端口号
-	th->seq = ntohl(th->seq);			// 32位序列号
-	th->ack_seq = ntohl(th->ack_seq);	// 32位确认序列号
-	th->win = ntohs(th->win);			// 16位窗口大小
-	th->csum = ntohs(th->csum);			// 校验和
-	th->urp = ntohs(th->urp);			// 16位紧急指针
+tcp_init_segment(struct tcphdr *th, struct iphdr *ih, struct sk_buff *skb) 
+{
+	ih->daddr = ntohl(ih->daddr);
+	ih->saddr = ntohl(ih->saddr);
+	
+	th->sport = ntohs(th->sport);		/* 16位源端口号   */
+	th->dport = ntohs(th->dport);		/* 16位目的端口号 */
+	th->seq = ntohl(th->seq);			/* 32位序列号		*/
+	th->ack_seq = ntohl(th->ack_seq);	/* 32位确认序列号 */
+	th->win = ntohs(th->win);			/* 16位窗口大小   */
+	th->csum = ntohs(th->csum);			/* 校验和		    */
+	th->urp = ntohs(th->urp);			/* 16位紧急指针   */
 
-	// skb中全部都是项全部都是主机字节序
-	skb->seq = th->seq; // 该数据报起始的序列号
-	skb->dlen = ip_len(ih) - tcp_hlen(th);	// 实际数据的大小
-	skb->len = skb->dlen + th->syn + th->fin; // syn和fin都算数据?
-	skb->end_seq = skb->seq + skb->dlen; // 该数据报终止的序列号
+	/* skb中全部都是项全部都是主机字节序 */
+	skb->seq = th->seq;					/* 该数据报起始的序列号 */
+	skb->dlen = ip_len(ih) - tcp_hlen(th);	/* 实际数据的大小 */
+	skb->len = skb->dlen + th->syn + th->fin; 
+	skb->end_seq = skb->seq + skb->dlen; /* 该数据报终止的序列号 */
 	skb->payload = th->data;
 }
 
 static void
-tcp_clear_queues(struct tcp_sock *tsk) {
+tcp_clear_queues(struct tcp_sock *tsk) 
+{
 	pthread_mutex_lock(&tsk->ofo_queue.lock);
 	skb_queue_free(&tsk->ofo_queue);
 	pthread_mutex_unlock(&tsk->ofo_queue.lock);
@@ -71,7 +61,7 @@ tcp_in(struct sk_buff *skb)
 	tcp_init_segment(th, iph, skb);
 
 	/* 这里寻找的sk本来就是一个tcp_sock对象 */
-	sk = inet_lookup(IP_TCP, th->sport, th->dport);
+	sk = tcp_lookup_sock(iph->saddr, th->sport, iph->daddr, th->dport);
 
 	if (sk == NULL) {
 		print_err("No TCP socket for sport %d dport %d\n",
@@ -85,62 +75,22 @@ tcp_in(struct sk_buff *skb)
 }
 
 
-
 int
 tcp_v4_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr)
 {
 	return tcp_udp_checksum(saddr, daddr, IP_TCP, skb->data, skb->len);
 }
 
-/* tcp_alloc_sock */
-struct sock *
-	tcp_alloc_sock()
-{
-	struct tcp_sock *tsk = malloc(sizeof(struct tcp_sock));
-    memset(tsk, 0, sizeof(struct tcp_sock));
-	tsk->sk.state = TCP_CLOSE;		/* 最开始处在关闭状态 */
-	tsk->flags = 0;
-	tsk->backoff = 0;
-
-	tsk->retransmit = NULL;
-	tsk->delack = NULL;
-	tsk->keepalive = NULL;
-
-	tsk->delacks = 0;
-
-	/* todo: determine mss properly */
-	
-	/* 设置最大报文段长度 */
-	tsk->rmss = 1460;
-	tsk->smss = 1460;
-
-	skb_queue_init(&tsk->ofo_queue);
-	
-	return (struct sock *)tsk;
-}
-
-int
-tcp_v4_init_sock(struct sock *sk)
-{
-	tcp_init_sock(sk);
-	return 0;
-}
-
-int
-tcp_init_sock(struct sock *sk)
-{
-	return 0;
-}
 
 void 
-__tcp_set_state(struct sock *sk, uint32_t state)
+_tcp_set_state(struct sock *sk, uint32_t state)
 {
 	sk->state = state;
 }
 
 /* generate_port 随机产生接口 */
-static
-uint16_t generate_port()
+uint16_t 
+tcp_generate_port()
 {
 	/* todo: 更好的办法来设置port */
 	static int port = 40000;
@@ -155,138 +105,7 @@ generate_isn()
 }
 
 
-int
-tcp_v4_connect(struct sock *sk, const struct sockaddr *addr, int addrlen, int flags)
-{
-	extern char *stackaddr;
-	uint16_t dport = ((struct sockaddr_in *)addr)->sin_port;
-	uint32_t daddr = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
 
-	sk->dport = ntohs(dport);
-	sk->sport = generate_port();			  /* 伪随机产生一个端口 */
-    sk->daddr = ntohl(daddr);
-	sk->saddr = parse_ipv4_string(stackaddr); /* sk中存储的是主机字节序 */
-	return tcp_connect(sk);
-}
-
-int
-tcp_disconnect(struct sock *sk, int flags)
-{
-	return 0;
-}
-
-int
-tcp_write(struct sock *sk, const void *buf, int len)
-{
-	struct tcp_sock *tsk = tcp_sk(sk);
-	int ret = -1;
-
-	switch (sk->state) {
-	/* 只有ESTABLISHED和CLOSE_WAIT两个状态可以向对端发送数据 */
-	case TCP_ESTABLISHED:
-	case TCP_CLOSE_WAIT: /* CLOSE_WAIT状态指的是接收到了对端发送的FIN,但是此端还可以向对端发送数据 */
-		break;
-	default: 
-		goto out;
-	}
-	return tcp_send(tsk, buf, len);
-out:
-	return ret;
-}
-
-int
-tcp_read(struct sock *sk, void *buf, int len)
-{
-	struct tcp_sock *tsk = tcp_sk(sk);
-	int ret = -1;
-
-	switch (sk->state) {
-	case TCP_CLOSE:
-		print_err("error: connectin does not exists\n");
-		goto out;
-	case TCP_LISTEN:
-	case TCP_SYN_SENT:
-	case TCP_SYN_RECEIVED:
-	case TCP_ESTABLISHED:
-	case TCP_FIN_WAIT_1:
-	case TCP_FIN_WAIT_2:
-		break;
-	case TCP_CLOSE_WAIT: /* 到达了CLOSE_WAIT状态之后,对方不应该再发送tcp数据过来 */
-		if (!skb_queue_empty(&tsk->sk.receive_queue)) break;
-		if (tsk->flags & TCP_FIN) {
-			tsk->flags &= ~TCP_FIN;
-			return 0;
-		}
-		break;
-	/* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-	CLOSING 两端同时关闭,发送了FIN,并且接收到了对方的FIN,此时进入CLOSING状态
-	LAST_ACK 服务端向对方发送了FIN,只需要接收对方的ACK,就可以进入CLOSED状态
-	TIME_WAIT 客户端接收到了处于LAST_ACK状态的服务端发送的FIN,最后一次向服务端发送ACK
-		 以上的这些状态都不可能发送tcp数据给对方. 
-	+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-	case TCP_CLOSING:
-	case TCP_LAST_ACK:
-	case TCP_TIME_WAIT:
-        print_err("error:  connection closing\n");
-		goto out;
-	default:
-		goto out;
-	}
-	return tcp_receive(tsk, buf, len);
-out:
-	return ret;
-}
-
-int
-tcp_recv_notify(struct sock *sk)
-{
-	if (&(sk->recv_wait)) {
-		return wait_wakeup(&sk->recv_wait); // 唤醒等待的进程
-	}
-	return -1;
-}
-
-int
-tcp_close(struct sock *sk)
-{
-	switch (sk->state) {
-/* 以下这些状态已经正在处理close,不能再次执行close */
-	case TCP_CLOSE:
-	case TCP_CLOSING:
-	case TCP_LAST_ACK:
-	case TCP_TIME_WAIT:
-	case TCP_FIN_WAIT_1:
-	case TCP_FIN_WAIT_2:
-		sk->err = -EBADF;
-		return -1;
-/* 服务端一般都处在LISTEN状态 */
-	case TCP_LISTEN: 
-/* 客户端向服务端发送了SYN,进入SYN_SNET状态 */
-	case TCP_SYN_SENT: 
-/* 服务端接受到了现在处于SYN_SENT状态的客户端发送的SYN,进入SYN_RECEIVED状态,
-   正常情况下,要向对方发送SYN和ACK */
-	case TCP_SYN_RECEIVED:
-	case TCP_ESTABLISHED:
-		tcp_set_state(sk, TCP_FIN_WAIT_1);
-		tcp_queue_fin(sk);
-		break;
-	case TCP_CLOSE_WAIT:
-		tcp_queue_fin(sk);
-		break;
-	default:
-		print_err("Unknown TCP state for close\n");
-		return -1;
-	}
-	return 0;
-}
-
-int
-tcp_abort(struct sock *sk)
-{
-	struct tcp_sock *tsk = tcp_sk(sk);
-	tcp_send_reset(tsk);
-	return tcp_done(sk);
-}
 
 int
 tcp_free(struct sock *sk)

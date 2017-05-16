@@ -50,7 +50,7 @@ struct ipc_socket {
 
 struct ipc_connect {
 	int sockfd;
-	struct sockaddr addr;
+	struct sockaddr_in addr;
 	socklen_t addrlen;
 } __attribute__((packed));
 

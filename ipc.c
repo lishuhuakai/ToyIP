@@ -149,7 +149,7 @@ ipc_connect(int sockfd, struct ipc_msg *msg)
 	struct ipc_connect *payload = (struct ipc_connect *)msg->data;
 	pid_t pid = msg->pid;
 	int rc = -1;
-	rc = _connect(pid, payload->sockfd, &payload->addr, payload->addrlen);
+	rc = _connect(pid, payload->sockfd, &payload->addr);
 	return ipc_write_rc(sockfd, pid, IPC_CONNECT, rc); /* 所谓的IPC,只是自己定义的一套规则吗? */
 }
 

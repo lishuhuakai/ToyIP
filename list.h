@@ -7,7 +7,7 @@ struct list_head {
     struct list_head *prev;
 };
 
-// 新建一个list头部
+/* 新建一个list头部 */
 #define LIST_HEAD(name)		\
     struct list_head name = { &(name), &(name) }
 
@@ -17,7 +17,7 @@ list_init(struct list_head *head)
 	head->prev = head->next = head;
 }
 
-// list_add 将new_node添加到head之后
+/* list_add 将new_node添加到head之后 */
 static inline void 
 list_add(struct list_head *new_node, struct list_head *head)
 {
@@ -27,7 +27,7 @@ list_add(struct list_head *new_node, struct list_head *head)
 	head->next = new_node;
 }
 
-// list_add_tail 将new_node添加到list的尾部
+/* list_add_tail 将new_node添加到list的尾部 */
 static inline void 
 list_add_tail(struct list_head *new_node, struct list_head *head)
 {
@@ -37,7 +37,7 @@ list_add_tail(struct list_head *new_node, struct list_head *head)
 	head->prev = new_node;
 }
 
-// 从list中删除元素elem
+/* 从list中删除元素elem */
 static inline void 
 list_del(struct list_head *elem)
 {
@@ -62,8 +62,9 @@ list_del(struct list_head *elem)
          pos != (head);                     \
          pos = p, p = pos->next)
 
-// 判断list是否为空
-static inline int list_empty(struct list_head *head)
+/* list_empty 判断list是否为空 */
+static inline int 
+list_empty(struct list_head *head)
 {
 	return head->next == head;
 }

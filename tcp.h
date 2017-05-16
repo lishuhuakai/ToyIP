@@ -69,8 +69,8 @@ do {																						  \
 
 #define tcp_set_state(sk, state)					\
     do {											\
-        tcp_sock_dbg("state is now "#state, sk);		\
-        __tcp_set_state(sk, state);					\
+        tcp_sock_dbg("state is now "#state, sk);	\
+        _tcp_set_state(sk, state);					\
     } while (0)
 
 #else
@@ -81,23 +81,23 @@ do {																						  \
 #endif
 
 struct tcphdr {
-	uint16_t sport;		// 16位源端口号
-	uint16_t dport;		// 16位目的端口号
-	uint32_t seq;		// 32位序列号
-	uint32_t ack_seq;	// 32位确认序列号,一般表示下一个期望收到的数据的序列号
-	uint8_t rsvd : 4;	// 
-	uint8_t hl : 4;		// 4位首部长度
-	uint8_t fin : 1,	// 发送端完成发送任务
-		syn : 1,		// 同步序号用来发起一个连接
-		rst : 1,		// 重建连接
-		psh : 1,		// 接收方应该尽快将这个报文段交给应用层
-		ack : 1,		// 确认序号有效
-		urg : 1,		// 紧急指针有效
+	uint16_t sport;		/* 16位源端口号 */
+	uint16_t dport;		/* 16位目的端口号 */
+	uint32_t seq;		/* 32位序列号 */
+	uint32_t ack_seq;	/* 32位确认序列号,一般表示下一个期望收到的数据的序列号 */
+	uint8_t rsvd : 4;	
+	uint8_t hl : 4;		/* 4位首部长度 */
+	uint8_t fin : 1,	/* 发送端完成发送任务 */
+		syn : 1,		/* 同步序号用来发起一个连接 */
+		rst : 1,		/* 重建连接 */
+		psh : 1,		/* 接收方应该尽快将这个报文段交给应用层 */
+		ack : 1,		/* 确认序号有效 */
+		urg : 1,		/* 紧急指针有效 */
 		ece : 1,
 		cwr : 1;
-	uint16_t win;		// 16位窗口大小
-	uint16_t csum;		// 16位校验和
-	uint16_t urp;		// 16位紧急指针
+	uint16_t win;		/* 16位窗口大小 */
+	uint16_t csum;		/* 16位校验和 */
+	uint16_t urp;		/* 16位紧急指针 */
 	uint8_t data[];
 } __attribute__((packed));
 
@@ -117,15 +117,15 @@ struct tcpiphdr {
     uint32_t saddr;
     uint32_t daddr;
     uint8_t zero;
-    uint8_t proto;			// 这里,我曾经写错了,很可能是因为这个原因导致出错
+    uint8_t proto;
     uint16_t tlen;
 } __attribute__((packed));
 
 enum tcp_states {
-	TCP_LISTEN,			// 等待一个连接
-	TCP_SYN_SENT,		// 已经发送了一个连接请求,等待对方的回复
-	TCP_SYN_RECEIVED,   // 接收到了对方发过来的SYN,ACK,需要发送确认
-	TCP_ESTABLISHED,    // 连接建立成功
+	TCP_LISTEN,			/* 等待一个连接 */
+	TCP_SYN_SENT,		/* 已经发送了一个连接请求,等待对方的回复 */
+	TCP_SYN_RECEIVED,   /* 接收到了对方发过来的syn, ack,需要发送确认 */
+	TCP_ESTABLISHED,    /* 连接建立成功 */
 	TCP_FIN_WAIT_1,
 	TCP_FIN_WAIT_2,
 	TCP_CLOSE,
@@ -135,9 +135,9 @@ enum tcp_states {
 	TCP_TIME_WAIT,
 };
 
-// Transmission Control Block 传输控制块
+/* Transmission Control Block 传输控制块 */
 struct tcb {
-	// sending side 发送方
+	/* sending side 发送方 */
 	uint32_t snd_una; // send unacknowledge #最小的未被确认的序列号
 	uint32_t snd_nxt; // send next #下一个要发送的序列号
 	uint32_t snd_wnd; // send window #发送窗口的大小
@@ -145,29 +145,36 @@ struct tcb {
 	uint32_t snd_wl1; // segment sequence number used for last window update
 	uint32_t snd_wl2; // segment acknowledgment number used for last window update
 	uint32_t isn;	  // initial send sequence number #初始的序列号(自己产生的)
-	// receiving side 接收方
+	/* receiving side 接收方 */
 	uint32_t rcv_nxt; // receive next #下一个期望收到的数据的序号
 	uint32_t rcv_wnd; // receive window #接收窗口的大小
 	uint32_t rcv_up;  // receive urgent pointer
 	uint32_t irs;	  // initial receive sequence number #接收到的起始序列号(对方的起始序列号)
 };
 
-// tcp_sock在原本sock的基础上增加了很多新的东西.
+/* tcp_sock在原本sock的基础上增加了很多新的东西. */
 struct tcp_sock {
 	struct sock sk;
 	int fd;
-	uint16_t tcp_header_len;	// tcp头部大小
-	struct tcb tcb;				// 传输控制块
+	uint16_t tcp_header_len;	/* tcp头部大小 */
+	struct tcb tcb;				/* 传输控制块 */
 	uint8_t flags;
 	uint8_t backoff;
+	struct list_head listen_queue;	/* 等待三次握手中的第二次ack+syn */
+	struct list_head accept_queue;	/* 等待三次握手中的最后一次的ack */
+	struct list_head list;
+	struct wait_lock *wait_accept;	/* 等待接收 */
+	struct wait_lock *wait_connect;	/* 等待被连接 */
+	struct tcp_sock *parent;
 	struct timer *retransmit;
 	struct timer *delack;
-	struct timer *keepalive;	// 保活
+	struct timer *keepalive;	/* 保活 */
 	struct timer *linger;
 	uint8_t delacks;
-	uint16_t rmss;				// remote maximum segment size 
-	uint16_t smss;				// 最大报文段长度
-	struct sk_buff_head ofo_queue; // ofo_queue用于记录那些没有按照顺序到达的tcp数据报
+	uint16_t rmss;				/* remote maximum segment size */ 
+	uint16_t smss;				/* 最大报文段长度 */
+	struct sk_buff_head ofo_queue; /* ofo_queue用于记录那些
+								   没有按照顺序到达的tcp数据报 */
 };
 
 static inline struct tcphdr *
@@ -176,19 +183,40 @@ tcp_hdr(const struct sk_buff *skb)
 	return (struct tcphdr *)(skb->head + ETH_HDR_LEN + IP_HDR_LEN);
 }
 
-/* tcp.c */
+
+/* tcp_accept_dequeue 从acccept队列中取出一个sock */
+static struct tcp_sock * 
+tcp_accept_dequeue(struct tcp_sock *tsk)
+{
+	struct tcp_sock *newtsk;
+	newtsk = list_first_entry(&tsk->accept_queue, struct tcp_sock, list);
+	list_del(&newtsk->list);
+	list_init(&newtsk->list);
+	return newtsk;
+}
+
+/* tcp_accept_enqueue 将tsk放入到acccept队列中 */
+static inline void
+tcp_accept_enqueue(struct tcp_sock *tsk)
+{
+	if (!list_empty(&tsk->list))
+		list_del(&tsk->list);
+	list_add(&tsk->list, &tsk->parent->accept_queue);
+}
+
+/* tcp_sock.c */
 int generate_isn();
 int tcp_v4_init_sock(struct sock *sk);
-int tcp_init_sock(struct sock *sk);
-int tcp_disconnect(struct sock *sk, int flags);
-int tcp_v4_connect(struct sock *sk, const struct sockaddr *addr, int addrlen, int flags);
+int tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr);
 int tcp_write(struct sock *sk, const void *buf, int len);
 int tcp_read(struct sock *sk, void *buf, int len);
 int tcp_recv_notify(struct sock *sk);
 int tcp_close(struct sock *sk);
-int tcp_abort(struct sock *sk);
 int tcp_free(struct sock *sk);
 int tcp_done(struct sock *sk);
+struct sock* tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport);
+
+/* tcp.c */
 void tcp_clear_timers(struct sock *sk);
 void tcp_stop_rto_timer(struct tcp_sock *tsk);
 void tcp_release_rto_timer(struct tcp_sock *tsk);
@@ -196,9 +224,7 @@ void tcp_stop_delack_timer(struct tcp_sock *tsk);
 void tcp_release_delack_timer(struct tcp_sock *tsk);
 void tcp_handle_fin_state(struct sock *sk);
 void tcp_enter_time_wait(struct sock *sk);
-void __tcp_set_state(struct sock *sk, uint32_t state);
-
-void tcp_init();
+void _tcp_set_state(struct sock *sk, uint32_t state);
 void tcp_in(struct sk_buff *skb);
 void tcp_send_delack(uint32_t ts, void *arg);
 int tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb);
@@ -208,6 +234,7 @@ int tcp_v4_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
 void tcp_select_initial_window(uint32_t *rcv_wnd);
 
 int generate_isn();
+uint16_t tcp_generate_port();
 struct sock *tcp_alloc_sock();
 
 /*tcp_output.c*/

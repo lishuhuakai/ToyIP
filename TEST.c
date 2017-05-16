@@ -7,6 +7,7 @@
 #include "tcp.h"
 #include "TEST.h"
 #include "tcp.h"
+#include "arp.h"
 #include "checksum.h"
 
 extern struct netdev* netdev;

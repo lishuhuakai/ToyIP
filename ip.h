@@ -3,6 +3,7 @@
 #include "syshead.h"
 #include "ethernet.h"
 #include "skbuff.h"
+#include "checksum.h"
 #include "sock.h"
 
 #define IPV4	 0x04

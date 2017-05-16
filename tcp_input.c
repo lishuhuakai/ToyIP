@@ -3,6 +3,18 @@
 #include "skbuff.h"
 #include "sock.h"
 
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+static int
+tcp_synrecv_ack(struct tcp_sock *tsk)
+{
+	if (tsk->parent->sk.state != TCP_LISTEN) return -1;
+	tcp_accept_enqueue(tsk);
+	wait_wakeup(tsk->parent->wait_accept);
+	return 0;
+}
+
 static int
 tcp_clean_rto_queue(struct sock *sk, uint32_t una)
 {
@@ -67,9 +79,9 @@ tcp_verify_segment(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb)
 	struct tcb *tcb = &tsk->tcb;
 
 	if (skb->dlen > 0 && tcb->rcv_wnd == 0) return 0;
-	/* 接收到的包的序列号如果小于我们期待接收的下一个数据报的序列号(rcv_nxt),那么这个数据包可能是
-	 * 重传的,同时,如果序列号大于rcv_nxt+rcv_wnd,表示可能是对方传送太多,当然也可能是别的原因.
-	 * 总之这些都是无用的数据报. */
+	/* 接收到的包的序列号如果小于我们期待接收的下一个数据报的序列号(rcv_nxt),那么这个数据
+	包可能是重传的,同时,如果序列号大于rcv_nxt+rcv_wnd,表示可能是对方传送太多,当然也可能
+	是别的原因.总之这些都是无用的数据报. */
 	if (th->seq < tcb->rcv_nxt ||
 		th->seq > (tcb->rcv_nxt + tcb->rcv_wnd)) {
 		tcp_sock_dbg("Received invalid segment", (&tsk->sk));
@@ -86,13 +98,51 @@ tcp_discard(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 	return 0;
 }
 
-static int 
-tcp_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+static struct tcp_sock *
+tcp_listen_child_sock(struct tcp_sock *tsk, struct tcphdr *thr, struct iphdr * ih)
 {
+	struct sock *newsk = tcp_alloc_sock();
+	struct tcp_sock *newtsk = tcp_sk(newsk);
+	tcp_set_state(newsk, TCP_SYN_RECEIVED);
+	newsk->saddr = ih->daddr;
+	newsk->daddr = ih->saddr;
+	newsk->sport = thr->dport;
+	newsk->dport = thr->sport;
+
+	newtsk->parent = tsk;
+	list_add(&newtsk->list, &tsk->listen_queue);	/* 将新的sock加入监听队列 */
+	return newtsk;
+}
+
+/* tcp_listen用于监听 */
+static int 
+tcp_handle_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
+{
+	struct tcp_sock *newtsk;
+	struct iphdr *iphdr = ip_hdr(skb);
+	
+	/* 1. 检查rst */
+	if (th->rst) goto discard;
+
+	/* 2. 检查ack */
+	if (th->ack) {
+		tcp_send_reset(tsk);
+		goto discard;
+	}
+
+	/* 3. 检查syn */
+	if (!th->syn) goto discard;
+
+	newtsk = tcp_listen_child_sock(tsk, th, iphdr);
+discard:
 	free_skb(skb);
 	return 0;
 }
 
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 static int
 tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
@@ -117,14 +167,13 @@ tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 		}
 	}
 
-	if (th->rst) { /* 此端给彼端发送了一个syn,然后对方发过来一个rst */
-		tcp_reset(&tsk->sk);
+	/* 此端给彼端发送了一个syn,然后对方发过来一个rst */
+	if (th->rst) { 
+		// tofix: 接收到rst,应该断开连接
 		goto discard;
 	}
 
-	if (!th->syn) { 
-		goto discard;
-	}
+	if (!th->syn) goto discard;
 
 	tcb->rcv_nxt = th->seq + 1;  /* tcb->rcv_nxt表示期待接收到的序号 */
 	tcb->irs = th->seq;			 /* tcb->irs表示数据发送的初始序列号(initial receive sequence number) */
@@ -200,10 +249,11 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	case TCP_CLOSE:   /* 处于close状态,接收到了tcp数据报 */
 		return tcp_closed(tsk, skb, th);
 	case TCP_LISTEN:  /* 处于listen状态 */
-		return tcp_listen(tsk, skb, th);
+		return tcp_handle_listen(tsk, skb, th);
 	case TCP_SYN_SENT: /* 已经主动发送了一个syn */
 		return tcp_synsent(tsk, skb, th);
 	}
+
 	/* 1.检查sequence number */
 	if (!tcp_verify_segment(tsk, th, skb)) {
 		if (!th->rst) {
@@ -213,42 +263,37 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	}
 
 	/* 2.检查rst bit */
-	if (th->rst) {
-		/*
-		 只要接收到了RST标记,连接立即复位,进入TIME_WAIT状态.
-		 */
-		free_skb(skb);
-		tcp_enter_time_wait(sk);
-		/* recv_notify主要用于唤醒调用socket的程序 */
-		tsk->sk.ops->recv_notify(&tsk->sk);
-		return 0;
-	}
 
-	/* 3.检查安全性和优先级
-	   待实现
-	 */
+	/* 3.检查安全性和优先级 */
 	
-	/* 4.检查syn bit */
-	if (th->syn) {
-		/* syn一般只在两处地方见到,第一是主动发起连接,第二是对方主动连接过来,这里是第二种情况. */
-		tcp_send_challenge_ack(sk, skb);
-		return tcp_drop(tsk, skb);
-	}
+	/* 4.检查syn */
 
-	if (!th->ack) {
-		return tcp_drop(tsk, skb);
-	}
+	if (!th->ack) return tcp_drop(tsk, skb);
 
 	/* 运行到了这里,接收的数据无syn,有ack
 	   这是什么情况呢? 这是正常的情况,表明连接的两方在正常地交换数据. */
 	switch (sk->state) {
 	case TCP_SYN_RECEIVED: /* 作为服务端,接收到了客户端发送的ack和syn */
+		/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		 服务端 listen:
+		 tcb->snd_nxt = isn + 1 #snd_nxt下一个要发送的序号
+		 tcb->snd_una = isn     #snd_una最小的未被确认的序号
+		 客户端 syn-sent:
+		 tcb->snd_nxt = _isn + 1
+		 tcb->snd_una = _isn
+		 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 		if (tcb->snd_una <= th->ack_seq && th->ack_seq < tcb->snd_nxt) {
+			if (tcp_synrecv_ack(tsk) < 0) {
+				return tcp_drop(tsk, skb);
+			}
+			tcb->snd_una = th->ack;
+			// tofix: 更新窗口
 			tcp_set_state(sk, TCP_ESTABLISHED);	
 		}
 		else {
 			return tcp_drop(tsk, skb);
 		}
+		break;
 	case TCP_ESTABLISHED:
 	case TCP_FIN_WAIT_1:	/* 主动关闭 */
 	case TCP_FIN_WAIT_2:	/* FIN_WAIT_2状态依旧可以接收对方发送的数据,直到对方发送了FIN,然后进入TIME_WAIT状态 */
@@ -271,7 +316,7 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 		}
 		/* snd_una表示最小的未被确认的序列号 */
 		if (tcb->snd_una < th->ack_seq && th->ack_seq <= tcb->snd_nxt) {
-			// todo: 发送窗口需要被更新
+			// tofix: 更新发送窗口
 		}
 		break;
 	}
@@ -300,7 +345,6 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
                the 2 MSL timeout. */
             if (tcb->rcv_nxt == th->seq) {
                 tcp_sock_dbg("Remote FIN retransmitted?", sk);
-//                tcb->rcv_nxt += 1;
                 tsk->flags |= TCP_FIN;
                 tcp_send_ack(sk);
             }
@@ -309,9 +353,7 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
     }
     
     /* 6.检查URG bit */
-    if (th->urg) {
-
-	}
+	// tofix: 有时间实现urg
 
 	pthread_mutex_lock(&sk->receive_queue.lock);
 
@@ -344,31 +386,27 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
             goto drop_and_unlock;
         }
 
-		tcb->rcv_nxt += 1;
+		tcb->rcv_nxt += 1;	/* fin需要消耗掉一个序号 */
 		tsk->flags |= TCP_FIN;
 		tcp_send_ack(sk);
 		tsk->sk.ops->recv_notify(&tsk->sk);
 
 		switch (sk->state) {
 		case TCP_SYN_RECEIVED:
-		case TCP_ESTABLISHED:  /* CLOSE_WAIT 被动关闭 */
+		case TCP_ESTABLISHED:  /* close_wait 被动关闭 */
 			tcp_set_state(sk, TCP_CLOSE_WAIT);
 			break;
 		case TCP_FIN_WAIT_1:
-			if (skb_queue_empty(&sk->write_queue)) {
-				tcp_enter_time_wait(sk);
-			}
-			else {
-				tcp_set_state(sk, TCP_CLOSING);
-			}
+			/* 两端同时发送fin,进入closing状态 */
+			tcp_set_state(sk, TCP_CLOSING);
 			break;
-		case TCP_FIN_WAIT_2: /* FIN_WAIT_2接收到FIN之后,进入TIME_WAIT状态,基本上一个tcp连接就完成了. */
+		case TCP_FIN_WAIT_2: /* fin_wait_2接收到fin之后,进入time_wait状态,
+							 基本上一个tcp连接就完成了. */
 			tcp_enter_time_wait(sk);
 			break;
 		case TCP_CLOSE_WAIT:
 		case TCP_CLOSING:
 		case TCP_LAST_ACK:
-			break;
 		case TCP_TIME_WAIT:
 			break;
 		}
@@ -417,3 +455,4 @@ tcp_receive(struct tcp_sock *tsk, void *buf, int len)
 	}
 	return rlen;
 }
+

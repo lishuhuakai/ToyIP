@@ -416,7 +416,7 @@ tcp_queue_fin(struct sock *sk)
 	struct tcb *tcb = &tcp_sk(sk)->tcb;
 	int rc = 0;
 
-	skb = tcp_alloc_skb(0, 0);  // 需要重新分配数据块,不包含tcp选项,不包含数据
+	skb = tcp_alloc_skb(0, 0);  /* 需要重新分配数据块,不包含tcp选项,不包含数据 */
 	th = tcp_hdr(skb);
 
 	th->fin = 1;
@@ -424,8 +424,8 @@ tcp_queue_fin(struct sock *sk)
 
 	tcp_sock_dbg("Queueing fin", sk);
 	rc = tcp_queue_transmit_skb(sk, skb);
-	// TCP规定,FIN报文即使不携带数据,它也要消耗掉一个序号
-	tcb->snd_nxt++;	// FIN消耗一个序列号
+	/* TCP规定,FIN报文即使不携带数据,它也要消耗掉一个序号 */
+	tcb->snd_nxt++;	/* FIN消耗一个序列号 */
 
 	return rc;
 }

@@ -4,8 +4,8 @@
 #include "syshead.h"
 
 struct wait_lock {
-	pthread_cond_t ready;	// 条件变量用于等待
-	pthread_mutex_t lock;	// 互斥锁用于上锁
+	pthread_cond_t ready;	/* 条件变量用于等待 */
+	pthread_mutex_t lock;	/* 互斥锁用于上锁 */
 	uint8_t sleeping;
 };
 
@@ -20,7 +20,7 @@ wait_init(struct wait_lock *w) {
 static inline int 
 wait_wakeup(struct wait_lock *w) {
 	pthread_mutex_lock(&w->lock);
-	pthread_cond_signal(&w->ready);		// 唤醒等待在条件变量ready上的线程
+	pthread_cond_signal(&w->ready);		/* 唤醒等待在条件变量ready上的线程 */
 	w->sleeping = 0;
 	pthread_mutex_unlock(&w->lock);
 	return 0;
@@ -31,7 +31,7 @@ wait_sleep(struct wait_lock *w) {
 	pthread_mutex_lock(&w->lock);
 	w->sleeping = 1;
 	// fix: while (w->sleeping == 1)
-	pthread_cond_wait(&w->ready, &w->lock);	// 这里不用怕suspicous wakeup吗?
+	pthread_cond_wait(&w->ready, &w->lock);	/* 这里不用怕suspicous wakeup吗? */
 	pthread_mutex_unlock(&w->lock);
 	return 0;
 }

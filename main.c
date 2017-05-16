@@ -80,7 +80,7 @@ init_stack()
 	tun_init();      /* ³õÊ¼»¯ĞéÄâÍø¿¨ */
 	netdev_init();
 	route_init();
-	tcp_init();
+	//tcp_init();
 }
 
 
