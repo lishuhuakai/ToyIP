@@ -47,9 +47,17 @@ ipc_free_thread(int sock)
 	pthread_mutex_unlock(&lock);
 }
 
+/* ipc_write_rc 用于对付那些没有数据要返回的函数 */
 static int 
 ipc_write_rc(int sockfd, pid_t pid, uint16_t type, int rc)
 {
+	/*
+	 返回的数据示意图如下:
+	 +----------+----------+
+	 | ipc_msg  | ipc_err  |        
+	 +----------+----------+
+	 
+	 */
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err);
 	struct ipc_msg *response = alloca(resplen);	 /* 在栈上动态分配内存 */
 
@@ -80,6 +88,9 @@ ipc_write_rc(int sockfd, pid_t pid, uint16_t type, int rc)
 	return 0;
 }
 
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/* ipc_read函数用于读取数据 */
 static int
 ipc_read(int sockfd, struct ipc_msg *msg)
 {
@@ -88,7 +99,7 @@ ipc_read(int sockfd, struct ipc_msg *msg)
 	int rlen = -1;
 	char rbuf[requested->len];
 	memset(rbuf, 0, requested->len);
-
+	/* pid和sockfd可以唯一确定一个socket */
 	rlen = _read(pid, requested->sockfd, rbuf, requested->len);
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_read) + rlen;
 	struct ipc_msg *response = alloca(resplen);
@@ -153,6 +164,53 @@ ipc_connect(int sockfd, struct ipc_msg *msg)
 	return ipc_write_rc(sockfd, pid, IPC_CONNECT, rc); /* 所谓的IPC,只是自己定义的一套规则吗? */
 }
 
+/* ipc_bind调用下层的bind函数,模拟bind函数的功能. */
+static int
+ipc_bind(int sockfd, struct ipc_msg *msg)
+{
+	struct ipc_bind *payload = (struct ipc_bind *)msg->data;
+	pid_t pid = msg->pid;
+	int rc = -1;
+	rc = _bind(pid, payload->sockfd, &payload->addr);
+	return ipc_write_rc(sockfd, pid, IPC_BIND, rc);
+}
+
+
+static int
+ipc_accept(int sockfd, struct ipc_msg *msg)
+{
+	struct ipc_accept *payload = (struct ipc_accept *)msg->data;
+	pid_t pid = msg->pid;
+	int rc = -1;
+	struct sockaddr_in *addr = payload->contain_addr ? alloca(sizeof(struct sockaddr)) : NULL;
+	rc = _accept(pid, payload->sockfd, addr);
+
+	/* acccept的函数,我们必须要自己回复. */
+	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_accept);
+	struct ipc_msg *response = alloca(resplen);
+	struct ipc_err *error = (struct ipc_err *)response->data;
+	struct ipc_accept *acc = (struct ipc_accept *)error->data;
+
+	if (response == NULL) {
+		print_err("Could not allocate memorty for IPC accept response\n");
+		return -1;
+	}
+
+	response->type = IPC_ACCEPT;
+	response->pid = pid;
+
+	error->rc = rc;
+	error->err = 0; // tofix:
+
+	acc->sockfd = sockfd;
+	if (payload->contain_addr)
+		memcpy(&acc->addr, addr, sizeof(struct sockaddr_in));
+	if (write(sockfd, (char *)response, resplen) == -1) {
+		perror("Error on writing IPC accept response");
+	}
+	return 0;
+}
+
 static int
 ipc_socket(int sockfd, struct ipc_msg *msg)
 {
@@ -163,7 +221,6 @@ ipc_socket(int sockfd, struct ipc_msg *msg)
 	rc = _socket(pid, sock->domain, sock->type, sock->protocol);
 	return ipc_write_rc(sockfd, pid, IPC_SOCKET, rc);
 }
-
 
 int 
 ipc_close(int sockfd, struct ipc_msg *msg)
@@ -217,25 +274,22 @@ demux_ipc_socket_call(int sockfd, char *cmdbuf, int blen)
 	switch (msg->type) {
 	case IPC_SOCKET:
 		return ipc_socket(sockfd, msg);
-		break;
 	case IPC_CONNECT:
 		return ipc_connect(sockfd, msg);
-		break;
 	case IPC_WRITE:
 		return ipc_write(sockfd, msg);
-		break;
 	case IPC_READ:
 		return ipc_read(sockfd, msg);
-		break;
+	case IPC_BIND:
+		return ipc_bind(sockfd, msg);
+	case IPC_ACCEPT:
+		return ipc_accept(sockfd, msg);
 	case IPC_CLOSE:
 		return ipc_close(sockfd, msg);
-		break;
 	case IPC_POLL:
 		return ipc_poll(sockfd, msg);
-		break;
     case IPC_FCNTL:
         return ipc_fcntl(sockfd, msg);
-        break;
 	default:
 		print_err("No such IPC type %d\n", msg->type);
 		break;
@@ -251,7 +305,7 @@ socket_ipc_open(void *args) {
 	int rc = -1;
 
 	while ((rc = read(sockfd, buf, blen)) > 0) {
-		rc = demux_ipc_socket_call(sockfd, buf, blen);
+		rc = demux_ipc_socket_call(sockfd, buf, blen);	/* 分发 */
 
 		if (rc == -1) {
 			printf("Error on demuxing IPC socket call\n");
@@ -267,6 +321,7 @@ socket_ipc_open(void *args) {
 	return NULL;
 }
 
+/* start_ipc_listener用于监听来自别的应用发送来的函数调用 */
 void *
 start_ipc_listener()
 {
@@ -277,7 +332,7 @@ start_ipc_listener()
 	unlink(sockname);
 
 	if (strnlen(sockname, sizeof(un.sun_path)) == sizeof(un.sun_path)) {
-		// 路径过长
+		/* 路径过长 */
 		print_err("Path for UNIX socket is too long\n");
 		exit(-1);
 	}
@@ -299,7 +354,7 @@ start_ipc_listener()
 		exit(EXIT_FAILURE);
 	}
 
-	rc = listen(fd, 20);	// 不断监听发送过来的数据
+	rc = listen(fd, 20);
 	
 	if (rc == -1) {
 		perror("IPC listen");

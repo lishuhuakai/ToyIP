@@ -11,15 +11,17 @@ static void tcp_retransmission_timeout(uint32_t ts, void *arg);
 static struct sk_buff *
 tcp_alloc_skb(int optlen, int size)
 {
-	// optlen表示tcp首部选项的大小
-	// 这里要特别注意一下,因为忘记了TCP_HDR_LEN导致出错
-	// ===============================================
-	int reserved = ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN + optlen + size; // 这里的一个错误弄得我好苦!
+	/*
+	 optlen表示tcp首部选项的大小
+	 这里要特别注意一下,因为忘记了TCP_HDR_LEN导致出错
+	 */
+	 //===============================================
+	int reserved = ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN + optlen + size; /* ==> 这里的一个错误弄得我好苦! */
 	struct sk_buff *skb = alloc_skb(reserved);
 
-	skb_reserve(skb, reserved); // skb->data部分留出reserved个字节
+	skb_reserve(skb, reserved); /* skb->data部分留出reserved个字节 */
 	skb->protocol = IP_TCP;
-	skb->dlen = size;	// dlen表示数据的大小
+	skb->dlen = size;	/* dlen表示数据的大小 */
 
 	return skb;
 }
@@ -53,18 +55,18 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	struct tcb *tcb = &tsk->tcb;
-	struct tcphdr *thdr = tcp_hdr(skb);  // tcp头部信息
+	struct tcphdr *thdr = tcp_hdr(skb);  /* tcp头部信息 */
 
 	if (thdr->hl == 0) thdr->hl = TCP_DOFFSET;
 
-	skb_push(skb, thdr->hl * 4); // hl表示tcp头部大小
+	skb_push(skb, thdr->hl * 4); /* hl表示tcp头部大小 */
 
-	// 填充头部信息
+	/* 填充头部信息 */
 	thdr->sport = sk->sport;
 	thdr->dport = sk->dport;
-	thdr->seq = seq;		// 分组的序号
-	thdr->ack_seq = tcb->rcv_nxt; // 携带一个确认序号
-	thdr->win = tcb->rcv_wnd;		// 接收窗口的大小
+	thdr->seq = seq;		/* 分组的序号 */
+	thdr->ack_seq = tcb->rcv_nxt; /* 携带一个确认序号 */
+	thdr->win = tcb->rcv_wnd;	  /* 接收窗口的大小 */
 	thdr->csum = 0;
 	thdr->urp = 0;
 	thdr->rsvd = 0;
@@ -76,7 +78,6 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 	skb->seq = tcb->snd_una;		// 为什么要记录为确认的序列号
 	skb->end_seq = tcb->snd_una + skb->dlen; // 终止序列号
 
-	//thdr->hl = htons(thdr->hl);
 	thdr->sport = htons(thdr->sport);
 	thdr->dport = htons(thdr->dport);
 	thdr->seq = htonl(thdr->seq);
@@ -87,9 +88,9 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 	// tcp首部的检验和,需要检验首部和数据,在计算检验和时,要在TCP报文段的前面加上12字节伪首部
 	/*
 		TCP伪首部
-			4						4			   1     1       2
+	          4                     4              1     1       2
 	   +--------------------+-------------------+-----+-----+----------+
-	   | 源ip地址				| 目的ip地址			|0	  |	6	|TCP长度	   |
+	   | saddr              | daddr             | 0   | 6   | len      |
 	   +--------------------+-------------------+-----+-----+----------+
 	   
 	 */
@@ -102,7 +103,7 @@ static int
 tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
-	struct tcb *tcb = &tsk->tcb;  // 传输控制块
+	struct tcb *tcb = &tsk->tcb;  /* 传输控制块 */
 	int rc = 0;
 
 	pthread_mutex_lock(&sk->write_queue.lock);
@@ -111,7 +112,7 @@ tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		tcp_rearm_rto_timer(tsk);
 	}
 
-	skb_queue_tail(&sk->write_queue, skb);	// 将skb加入到发送队列的尾部
+	skb_queue_tail(&sk->write_queue, skb);	/* 将skb加入到发送队列的尾部 */
 	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt);
 	tcb->snd_nxt += skb->dlen;
 	pthread_mutex_unlock(&sk->write_queue.lock);
@@ -136,7 +137,7 @@ tcp_send_synack(struct sock *sk)
 
 	th->syn = 1;
 	th->ack = 1;
-	// 不消耗序列号
+	/* 不消耗序列号 */
 	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt);
 	free_skb(skb);
 
@@ -154,7 +155,7 @@ tcp_send_delack(uint32_t ts, void *arg)
 	tcp_send_ack(sk);
 }
 
-// tcp_send_ack 发送ack
+/* tcp_send_ack 发送ack */
 int
 tcp_send_ack(struct sock *sk)
 {
@@ -166,9 +167,9 @@ tcp_send_ack(struct sock *sk)
 	struct tcb *tcb = &tcp_sk(sk)->tcb;
 	int rc = 0;
 
-	skb = tcp_alloc_skb(0, 0);  // 需要重新分配数据块,不包含tcp选项,不包含数据
+	skb = tcp_alloc_skb(0, 0);  /* 需要重新分配数据块,不包含tcp选项,不包含数据 */
 
-	th = tcp_hdr(skb); // th指向要发送数据的tcp头部
+	th = tcp_hdr(skb); /* th指向要发送数据的tcp头部 */
 	th->ack = 1;
 
 	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt);
@@ -190,12 +191,12 @@ tcp_send_syn(struct sock *sk)
 	struct tcp_options opts = { 0 };
 	int tcp_options_len = 0;
 
-	tcp_options_len = tcp_syn_options(sk, &opts);	// tcp选项的长度
-	skb = tcp_alloc_skb(tcp_options_len, 0); // 需要发送tcp选项
-	th = tcp_hdr(skb);		// 指向tcp头部
+	tcp_options_len = tcp_syn_options(sk, &opts);	/* tcp选项的长度 */
+	skb = tcp_alloc_skb(tcp_options_len, 0); /* 需要发送tcp选项 */
+	th = tcp_hdr(skb);		/* 指向tcp头部 */
 
 	tcp_write_options(th, &opts, tcp_options_len);
-	sk->state = TCP_SYN_SENT;  // 客户端发送了SYN之后,进入SYN_SNET状态
+	sk->state = TCP_SYN_SENT;  /* 客户端发送了syn之后,进入syn_sent状态 */
 	th->syn = 1;
 
 	return tcp_queue_transmit_skb(sk, skb);
@@ -311,13 +312,13 @@ void
 tcp_rearm_rto_timer(struct tcp_sock *tsk)
 {
 	struct sock *sk = &tsk->sk;
-	tcp_release_rto_timer(tsk);	// 释放掉之前的重传定时器
+	tcp_release_rto_timer(tsk);	/* 释放掉之前的重传定时器 */
 
-	if (sk->state == TCP_SYN_SENT) {	// BACKOFF 貌似是退避时间
+	if (sk->state == TCP_SYN_SENT) {	/* backoff 貌似是退避时间 */
 		tsk->retransmit = timer_add(TCP_SYN_BACKOFF << tsk->backoff, &tcp_connect_rto, tsk);
 	}
 	else {
-		// 500秒超时重传
+		/* 500秒超时重传 */
 		tsk->retransmit = timer_add(500, &tcp_retransmission_timeout, tsk);
 	}
 }
@@ -330,7 +331,7 @@ tcp_connect(struct sock *sk)
 	int rc = 0;
 
 	tsk->tcp_header_len = sizeof(struct tcphdr);
-	tcb->isn = generate_isn();  // isn是随机产生的一个序列号
+	tcb->isn = generate_isn();  /* isn是随机产生的一个序列号 */
 	tcb->snd_wnd = 0;
 	tcb->snd_wl1 = 0;
 
@@ -339,14 +340,14 @@ tcp_connect(struct sock *sk)
 	tcb->snd_nxt = tcb->isn;
 	tcb->rcv_nxt = 0;
 
-	tcp_select_initial_window(&tsk->tcb.rcv_wnd); // 接收窗口的大小
+	tcp_select_initial_window(&tsk->tcb.rcv_wnd); /* 接收窗口的大小 */
 
 	rc = tcp_send_syn(sk);
-	tcb->snd_nxt++;  // 消耗一个序列号
+	tcb->snd_nxt++;  /* 消耗一个序列号 */
 	return rc;
 }
 
-// tcp_send 发送tcp数据
+/* tcp_send 发送tcp数据 */
 int 
 tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 {
@@ -357,10 +358,10 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 	int dlen = 0;
 
 	while (slen > 0) {
-		dlen = slen > mss ? mss : slen; // 一个tcp报文最多只能发送mss个字节tcp数据
+		dlen = slen > mss ? mss : slen; /* 一个tcp报文最多只能发送mss个字节tcp数据 */
 		slen -= dlen;
 
-		skb = tcp_alloc_skb(0, dlen); // tcp头部选项0字节,数据大小dlen字节
+		skb = tcp_alloc_skb(0, dlen); /* tcp头部选项0字节,数据大小dlen字节 */
 		skb_push(skb, dlen);
 		memcpy(skb->data, buf, dlen);
 
@@ -369,7 +370,7 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 		th->ack = 1;
 
 		if (slen == 0) {
-			th->psh = 1;	// 紧急数据
+			th->psh = 1;	/* 紧急数据 */
 		}
 
 		if (tcp_queue_transmit_skb(&tsk->sk, skb) == -1) {
@@ -379,7 +380,7 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 	return len;
 }
 
-// tcp_send_reset 向对端发送RST
+/* tcp_send_reset 向对端发送rst */
 int
 tcp_send_reset(struct tcp_sock *tsk)
 {
@@ -395,17 +396,10 @@ tcp_send_reset(struct tcp_sock *tsk)
 	th->rst = 1;
 	tcb->snd_una = tcb->snd_nxt;
 
-	// RST 并不消耗序列号
+	/* rst 并不消耗序列号 */
 	rc = tcp_transmit_skb(&tsk->sk, skb, tcb->snd_nxt);
 	free_skb(skb);
 	return rc;
-}
-
-int
-tcp_send_challenge_ack(struct sock *sk, struct sk_buff *skb)
-{
-	// todo;
-	return 0;
 }
 
 int 

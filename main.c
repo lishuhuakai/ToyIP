@@ -9,7 +9,7 @@
 
 int debug = 1;
 int running = 1;
-
+void * start_ipc_listener();
 #define THREAD_CORE 0
 #define THREAD_TIMERS 1
 #define THREAD_IPC 2
