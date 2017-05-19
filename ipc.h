@@ -10,7 +10,7 @@
 #define ipc_dbg(msg, th)													\
     do {																	\
         print_debug("IPC sockets count %d, current sock %d, tid %lu: %s",	\
-                    conn_count, th->sock, th->id, msg);					\
+                    conn_count, th->sock, th->id, msg);						\
     } while (0)
 #else
 #define ipc_dbg(msg, th)
@@ -22,11 +22,9 @@
 #define IPC_WRITE   0x0003
 #define IPC_READ    0x0004
 #define IPC_CLOSE   0x0005
-#define IPC_POLL    0x0006
-#define IPC_FCNTL   0x0007
-#define IPC_BIND	0x0008
-#define IPC_ACCEPT  0x0009
-#define IPC_LISTEN  0x000a
+#define IPC_BIND	0x0006
+#define IPC_ACCEPT  0x0007
+#define IPC_LISTEN  0x0008
 
 struct ipc_thread {
     struct list_head list;
@@ -89,17 +87,6 @@ struct ipc_read {
 
 struct ipc_close {
     int sockfd;
-} __attribute__((packed));
-
-struct ipc_poll {
-    int sockfd;
-    short int events;
-} __attribute__((packed));
-
-struct ipc_fcntl {
-    int sockfd;
-    int cmd;
-    uint8_t data[];
 } __attribute__((packed));
 
 #endif

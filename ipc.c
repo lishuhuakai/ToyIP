@@ -244,36 +244,6 @@ ipc_close(int sockfd, struct ipc_msg *msg)
 	return rc;
 }
 
-static int
-ipc_poll(int sockfd, struct ipc_msg *msg)
-{
-	struct ipc_poll *data = (struct ipc_poll *)msg->data;
-	pid_t pid = msg->pid;
-	int rc = -1;
-
-	rc = _poll(pid, data->sockfd);
-	return ipc_write_rc(sockfd, pid, IPC_POLL, rc);
-}
-
-static int
-ipc_fcntl(int sockfd, struct ipc_msg *msg)
-{
-	struct ipc_fcntl *fc = (struct ipc_fcntl *)msg->data;
-	pid_t pid = msg->pid;
-	int rc = -1;
-	switch (fc->cmd) {
-	case F_GETFL:
-		rc = _fcntl(pid, fc->sockfd, fc->cmd);
-		break;
-	case F_SETFL:
-		rc = _fcntl(pid, fc->sockfd, fc->cmd, *(int *)fc->data);
-		break;
-	default:
-		print_err("IPC Fcntl cmd not supported %d\n", fc->cmd);
-		rc = -EINVAL;
-	}
-	return ipc_write_rc(sockfd, pid, IPC_FCNTL, rc);
-}
 
 /* demux_ipc_socket_call 更多的是实现消息的分发 */
 static int
@@ -296,10 +266,6 @@ demux_ipc_socket_call(int sockfd, char *cmdbuf, int blen)
 		return ipc_accept(sockfd, msg);
 	case IPC_CLOSE:
 		return ipc_close(sockfd, msg);
-	case IPC_POLL:
-		return ipc_poll(sockfd, msg);
-    case IPC_FCNTL:
-        return ipc_fcntl(sockfd, msg);
 	case IPC_LISTEN:
 		return ipc_listen(sockfd, msg);
 	default:

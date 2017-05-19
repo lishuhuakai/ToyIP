@@ -28,14 +28,6 @@
 
 struct socket;
 
-enum socket_state {
-	SS_FREE = 0,	
-	SS_UNCONNECTED,	
-	SS_CONNECTING,	
-	SS_CONNECTED,
-	SS_DISCONNECTING
-};
-
 struct sock_type {
 	struct sock_ops *sock_ops;	/* sock_ops记录一套对socket的操纵方法 */
 	struct net_ops *net_ops;
@@ -52,7 +44,6 @@ struct sock_ops {
 	int(*bind)(struct socket *sock, struct sockaddr_in *);	/* 绑定到某个地址 */
 	int(*close)(struct socket *sock);
 	int(*free)(struct socket *sock);
-	int(*poll)(struct socket *sock);
 	int(*sendto)(int sockfd, const void *buf, size_t len, int flags,
 		const struct sockaddr_in *dest_addr);
 	int(*recvfrom)(int sockfd, void *buf, size_t len, int flags,
@@ -69,7 +60,6 @@ struct socket {
 	struct list_head list;
 	int fd;
 	pid_t pid;
-	enum socket_state state;		/* socket正在处于的状态 */
 	short type;
 	int flags;
 	struct sock *sk;				/* sock记录的是关于连接的信息 */
@@ -87,8 +77,6 @@ int _write(pid_t pid, int sockfd, const void *buf, const unsigned int count);
 int _read(pid_t pid, int sockfd, void* buf, const unsigned int count);
 int _bind(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 int _close(pid_t pid, int sockfd);
-int _poll(pid_t pid, int sockfd);
-int _fcntl(pid_t pid, int fildes, int cmd, ...);
 int _accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 
 int socket_free(struct socket *sock);

@@ -51,7 +51,6 @@ alloc_socket(pid_t pid)
 
 	sock->pid = pid;	/* 进程id */
 	sock->fd = fd++;	/* 不重复文件描述符 */
-	sock->state = SS_UNCONNECTED;
 	sock->ops = NULL;
 	sock->flags = O_RDWR;
 	wait_init(&sock->sleep);
@@ -193,43 +192,6 @@ _close(pid_t pid, int sockfd)
 		return -1;
 	}
 	return sock->ops->close(sock);
-}
-
-int
-_poll(pid_t pid, int sockfd)
-{
-	struct socket *sock;
-	if ((sock = get_socket(pid, sockfd)) == NULL) {
-		print_err("Poll: could not find socket (fd %d && pid %d)\n",
-			sockfd, pid);
-		return -1;
-	}
-	return sock->sk->poll_events;
-}
-
-int
-_fcntl(pid_t pid, int fildes, int cmd, ...)
-{
-	struct socket *sock;
-	if ((sock = get_socket(pid, fildes)) == NULL) {
-		print_err("fcntl: could not find socket (fd %d && pid %d)\n",
-			fildes, pid);
-		return -1;
-	}
-	va_list ap;
-
-	switch (cmd) {
-	case F_GETFL:
-		return sock->flags;
-	case F_SETFL:
-		va_start(ap, cmd);
-		sock->flags = va_arg(ap, int);
-		va_end(ap);
-		return 0;
-	default:
-		return -1;
-	}
-	return -1;
 }
 
 
