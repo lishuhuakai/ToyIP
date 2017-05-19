@@ -63,7 +63,7 @@ ip_hdr(const struct sk_buff *skb)
 	return (struct iphdr *)(skb->head + ETH_HDR_LEN);
 }
 
-// ip_parse 直接将字符形式的ip地址转换为本地字节序形式的ip地址.
+/* ip_parse 直接将字符形式的ip地址转换为本地字节序形式的ip地址. */
 static inline uint32_t 
 ip_parse(char *addr)
 {
@@ -72,7 +72,7 @@ ip_parse(char *addr)
 		perror("ERR: Parsing inet address failed");
 		exit(1);
 	}
-	// 需要注意的是inet_pton将字符形式的ip地址转换为网络字节序形式的ip地址
+	/* 需要注意的是inet_pton将字符形式的ip地址转换为网络字节序形式的ip地址 */
 	return ntohl(dst);
 }
 

@@ -4,17 +4,26 @@
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /* 为了尽可能简洁,所以实现非常简单. */
 
-LIST_HEAD(tcp_listening_socks);			/* 正处在监听状态的sock */
+LIST_HEAD(tcp_unestablished_socks);		/* 连接尚未完全建立成功的sock */
 LIST_HEAD(tcp_establised_socks);		/* 连接成功建立sock */
+LIST_HEAD(tcp_syn_recvd_socks);			/* 状态为syn_received的sock所构成的sock */
+
+void inline
+tcp_syn_recvd_socks_enqueue(struct sock *sk)
+{
+	list_add_tail(&sk->link, &tcp_syn_recvd_socks);
+}
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 static int tcp_set_sport(struct sock *sk, uint16_t port);
 static int tcp_listen(struct sock *sk, int backlog);
+static struct sock* tcp_accept(struct sock* sk);
 
 struct net_ops tcp_ops = {
 	.alloc_sock = &tcp_alloc_sock,
-	.init = &tcp_v4_init_sock,
+	.init = &tcp_init,
 	.connect = &tcp_v4_connect,
+	.accept = &tcp_accept,
 	.listen = &tcp_listen,
 	.send_buf = &tcp_write,
 	.recv_buf = &tcp_read,
@@ -39,6 +48,8 @@ struct sock *
 
 	tsk->delacks = 0;
 
+
+	tsk->sk.ops = &tcp_ops;
 	/* todo: determine mss properly */
 
 	/* 设置最大报文段长度 */
@@ -46,16 +57,27 @@ struct sock *
 	tsk->smss = 1460;
 
 	skb_queue_init(&tsk->ofo_queue);
-
+	list_init(&tsk->accept_queue);
+	list_init(&tsk->listen_queue);
 	return (struct sock *)tsk;
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+/* tcp_init 每构建一个tcp_sock,都会调用这个函数对该tcp_sock做初始化 */
 int
-tcp_v4_init_sock(struct sock *sk)
+tcp_init(struct sock *sk)
 {
-	list_init(&tcp_listening_socks);
+	return 0;
+}
+
+/* tcp_init_sock 对整个tcp协议做一些初始化工作 */
+int
+tcp_init_sock()
+{
+	list_init(&tcp_unestablished_socks);
 	list_init(&tcp_establised_socks);
+	list_init(&tcp_syn_recvd_socks);
 	return 0;
 }
 
@@ -67,7 +89,7 @@ tcp_port_used(uint16_t pt)
 	struct list_head* item;
 	struct sock* it;
 	/* 遍历监听队列,查看是否port已经被使用 */
-	list_for_each(item, &tcp_listening_socks) {
+	list_for_each(item, &tcp_unestablished_socks) {
 		it = list_entry(item, struct sock, link);
 		if (it->sport == pt) return 1;
 	}
@@ -80,7 +102,6 @@ static int
 tcp_set_sport(struct sock *sk, uint16_t port)
 {
 	int err = -1;
-	struct tcp_port_item *item;
 	/* 端口号不能为0 */
 	if (!port) goto out;
 	/* 端口已经被占用 */
@@ -206,14 +227,26 @@ int
 tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr)
 {
 	extern char *stackaddr;
+	struct tcp_sock *tsk = tcp_sk(sk);
 	uint16_t dport = ((struct sockaddr_in *)addr)->sin_port;
 	uint32_t daddr = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
-
+	int rc = 0;
 	sk->dport = ntohs(dport);
 	sk->sport = tcp_generate_port();			  /* 伪随机产生一个端口 */
 	sk->daddr = ntohl(daddr);
-	sk->saddr = parse_ipv4_string(stackaddr); /* sk中存储的是主机字节序 */
-	return tcp_connect(sk);
+	sk->saddr = ip_parse(stackaddr);			  /* sk中存储的是主机字节序 */
+	list_add_tail(&sk->link, &tcp_unestablished_socks);
+	tcp_begin_connect(sk);					  /* 首先向对方发送ack */
+	if (tsk->flags & O_NONBLOCK) {
+		sk->err = -EISCONN;
+		goto out;
+	}
+	/* 接下来需要等待连接的成功建立 */
+	wait_sleep(&sk->sock->sleep);
+	list_del(&sk->link);				/* 将sk从unestablished_socks中删除 */
+	list_add_tail(&sk->link, &tcp_establised_socks);
+out:
+	return rc;
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -222,15 +255,18 @@ static struct sock*
 tcp_accept(struct sock* sk)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
-	struct tcp_sock *newsk = NULL;	/* 期待构建一个新的连接 */
+	struct tcp_sock *newtsk = NULL;	/* 期待构建一个新的连接 */
 
 	while (list_empty(&tsk->accept_queue)) {
-		if (wait_sleep(&tsk->sk.recv_wait) < 0) goto out;
+		if (wait_sleep(&tsk->sk.accept_wait) < 0) goto out;	/* 等待被唤醒 */
 	}
 
-	newsk = tcp_accept_dequeue(tsk);
+	newtsk = tcp_accept_dequeue(tsk);
+
+	/* 连接建立成功 */
+	list_add_tail(&newtsk->sk.link, &tcp_establised_socks);
 out:
-	return newsk ? &newsk->sk : NULL;
+	return newtsk ? &newtsk->sk : NULL;
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -241,7 +277,7 @@ tcp_lookup_established_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t
 {
 	struct sock *sk;
 	struct list_head* item;
-
+	/* 需要注意的是,查找的顺序是相反的. */
 	list_for_each(item, &tcp_establised_socks) {
 		sk = list_entry(item, struct sock, link);
 		if ((sk->saddr == src) && (sk->sport == sport) &&
@@ -252,15 +288,31 @@ tcp_lookup_established_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t
 	return NULL;
 }
 
-/* tcp_lookup_listening_sock 用于搜寻正在监听的sock */
 static struct sock *
-	tcp_lookup_listening_sock(uint32_t dst, uint16_t dport)
+tcp_lookup_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
+{
+	struct sock *sk;
+	struct list_head* item;
+	/* 需要注意的是,查找的顺序是相反的. */
+	list_for_each(item, &tcp_syn_recvd_socks) {
+		sk = list_entry(item, struct sock, link);
+		if ((sk->saddr == src) && (sk->sport == sport) &&
+			(sk->daddr == dst) && (sk->dport == dport)) {
+			return sk;
+		}
+	}
+	return NULL;
+}
+
+/* tcp_lookup_unestablished_sock 用于搜寻正在监听的sock */
+static struct sock *
+	tcp_lookup_unestablished_sock(uint32_t src, uint16_t sport)
 {
 	struct sock *sk;
 	struct list_head *item;
-	list_for_each(item, &tcp_listening_socks) {
+	list_for_each(item, &tcp_unestablished_socks) {
 		sk = list_entry(item, struct sock, link);
-		if ((sk->saddr == dst) && (sk->sport == dport))
+		if ((sk->saddr == src) && (sk->sport == sport))
 			return sk;
 	}
 	return NULL;
@@ -271,8 +323,9 @@ struct sock *
 	tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
 {
 	struct sock *sk;
-	sk = tcp_lookup_established_sock(src, sport, dst, dport);
-	if (!sk) sk = tcp_lookup_listening_sock(dst, dport);
+	sk = tcp_lookup_syn_recvd_sock(dst, dport, src, sport);
+	if (!sk) sk = tcp_lookup_established_sock(dst, dport, src, sport);
+	if (!sk) sk = tcp_lookup_unestablished_sock(dst, dport);
 	return sk;
 }
 
@@ -280,7 +333,6 @@ static int
 tcp_listen(struct sock *sk, int backlog)
 {
 	/* 在这里backlog失效 */
-
 	struct tcp_sock *tsk = tcp_sk(sk);
 	struct tcb *tcb = &tsk->tcb;
 
@@ -291,6 +343,6 @@ tcp_listen(struct sock *sk, int backlog)
 
 	sk->state = TCP_LISTEN;		/* 进入监听状态 */
 	/* 接下来需要将sk加入监听队列 */
-	list_add_tail(&sk->link, &tcp_listening_socks);
+	list_add_tail(&sk->link, &tcp_unestablished_socks);
 	return 0;
 }

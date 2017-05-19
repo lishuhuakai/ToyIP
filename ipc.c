@@ -5,9 +5,9 @@
 
 #define IPC_BUFLEN 4096
 
-static LIST_HEAD(sockets);
+static LIST_HEAD(connections);	/* connections是由struct ipc_thread构成的链 */
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-static int socket_count = 0;
+static int conn_count = 0;
 
 static struct ipc_thread *
 ipc_alloc_thread(int sock)
@@ -17,8 +17,8 @@ ipc_alloc_thread(int sock)
 	th->sock = sock;		/* sock仅仅只是一个标记 */
 
 	pthread_mutex_lock(&lock);
-	list_add_tail(&th->list, &sockets); /* 将th->list加入到sockets的尾部 */
-	socket_count++;
+	list_add_tail(&th->list, &connections); /* 将th->list加入到connections的尾部 */
+	conn_count++;
 	pthread_mutex_unlock(&lock);
 
 	ipc_dbg("New IPC socket allocated", th);
@@ -32,7 +32,7 @@ ipc_free_thread(int sock)
 	struct ipc_thread *th = NULL;
 
 	pthread_mutex_lock(&lock);
-	list_for_each_safe(item, tmp, &sockets) {
+	list_for_each_safe(item, tmp, &connections) {
 		th = list_entry(item, struct ipc_thread, list);
 
 		if (th->sock == sock) {		/* sock类似于文件描述符 */
@@ -40,7 +40,7 @@ ipc_free_thread(int sock)
 			ipc_dbg("IPC socket deleted", th);
 			close(th->sock);
 			free(th);
-			socket_count--;
+			conn_count--;
 			break;
 		}
 	}
@@ -128,7 +128,6 @@ ipc_read(int sockfd, struct ipc_msg *msg)
 	return 0;
 }
 
-
 static int
 ipc_write(int sockfd, struct ipc_msg *msg)
 {
@@ -164,6 +163,16 @@ ipc_connect(int sockfd, struct ipc_msg *msg)
 	return ipc_write_rc(sockfd, pid, IPC_CONNECT, rc); /* 所谓的IPC,只是自己定义的一套规则吗? */
 }
 
+static int
+ipc_listen(int sockfd, struct ipc_msg *msg)
+{
+	struct ipc_listen *payload = (struct ipc_listen *)msg->data;
+	pid_t pid = msg->pid;
+	int rc = -1;
+	rc = _listen(pid, payload->sockfd, payload->backoff);
+	return ipc_write_rc(sockfd, pid, IPC_LISTEN, rc); /* 所谓的IPC,只是自己定义的一套规则吗? */
+}
+
 /* ipc_bind调用下层的bind函数,模拟bind函数的功能. */
 static int
 ipc_bind(int sockfd, struct ipc_msg *msg)
@@ -182,8 +191,9 @@ ipc_accept(int sockfd, struct ipc_msg *msg)
 	struct ipc_accept *payload = (struct ipc_accept *)msg->data;
 	pid_t pid = msg->pid;
 	int rc = -1;
+	struct socket *sock;
 	struct sockaddr_in *addr = payload->contain_addr ? alloca(sizeof(struct sockaddr)) : NULL;
-	rc = _accept(pid, payload->sockfd, addr);
+	rc = _accept(pid, payload->sockfd, addr);	/* 如果rc > 0,那么rc是对应连接的文件描述符 */
 
 	/* acccept的函数,我们必须要自己回复. */
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_accept);
@@ -290,6 +300,8 @@ demux_ipc_socket_call(int sockfd, char *cmdbuf, int blen)
 		return ipc_poll(sockfd, msg);
     case IPC_FCNTL:
         return ipc_fcntl(sockfd, msg);
+	case IPC_LISTEN:
+		return ipc_listen(sockfd, msg);
 	default:
 		print_err("No such IPC type %d\n", msg->type);
 		break;

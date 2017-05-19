@@ -3,15 +3,15 @@
 #include "skbuff.h"
 #include "sock.h"
 
-
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 static int
 tcp_synrecv_ack(struct tcp_sock *tsk)
 {
 	if (tsk->parent->sk.state != TCP_LISTEN) return -1;
+	list_del(&tsk->sk.link);	/* 将其从tcp_syn_recvd_socks中移除 */
 	tcp_accept_enqueue(tsk);
-	wait_wakeup(tsk->parent->wait_accept);
+	wait_wakeup(&tsk->parent->sk.accept_wait);
 	return 0;
 }
 
@@ -105,7 +105,6 @@ tcp_listen_child_sock(struct tcp_sock *tsk, struct tcphdr *thr, struct iphdr * i
 {
 	struct sock *newsk = tcp_alloc_sock();
 	struct tcp_sock *newtsk = tcp_sk(newsk);
-	tcp_set_state(newsk, TCP_SYN_RECEIVED);
 	newsk->saddr = ih->daddr;
 	newsk->daddr = ih->saddr;
 	newsk->sport = thr->dport;
@@ -120,6 +119,7 @@ tcp_listen_child_sock(struct tcp_sock *tsk, struct tcphdr *thr, struct iphdr * i
 static int 
 tcp_handle_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 {
+	/* tcp规定,syn报文段不能携带数据,但是要消耗掉一个序号 */
 	struct tcp_sock *newtsk;
 	struct iphdr *iphdr = ip_hdr(skb);
 	
@@ -136,6 +136,20 @@ tcp_handle_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 	if (!th->syn) goto discard;
 
 	newtsk = tcp_listen_child_sock(tsk, th, iphdr);
+	/* 构建了一个新的sock之后,需要将该sock放入队列中 */
+	if (!newtsk) goto discard;
+	tcp_set_state((&newtsk->sk), TCP_SYN_RECEIVED);
+
+	struct tcb *tc = &newtsk->tcb;
+	/* 准备向对方发送ack以及syn */
+	tc->irs = th->seq;
+	tc->isn = generate_isn();
+	tc->snd_nxt = tc->isn;		/* 发送给对端的seq序号 */
+	tc->rcv_nxt = th->seq + 1;	/* 发送给对端的ack序号, 对方发送的syn消耗掉一个序号 */
+	tcp_send_synack(&newtsk->sk);
+	tcp_syn_recvd_socks_enqueue(&newtsk->sk);
+	tc->snd_nxt = tc->isn + 1;	/*  */
+	tc->snd_una = tc->isn;
 discard:
 	free_skb(skb);
 	return 0;
@@ -268,29 +282,23 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	
 	/* 4.检查syn */
 
+	/* 5.检查ack */
 	if (!th->ack) return tcp_drop(tsk, skb);
 
 	/* 运行到了这里,接收的数据无syn,有ack
 	   这是什么情况呢? 这是正常的情况,表明连接的两方在正常地交换数据. */
 	switch (sk->state) {
-	case TCP_SYN_RECEIVED: /* 作为服务端,接收到了客户端发送的ack和syn */
-		/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		 服务端 listen:
-		 tcb->snd_nxt = isn + 1 #snd_nxt下一个要发送的序号
-		 tcb->snd_una = isn     #snd_una最小的未被确认的序号
-		 客户端 syn-sent:
-		 tcb->snd_nxt = _isn + 1
-		 tcb->snd_una = _isn
-		 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-		if (tcb->snd_una <= th->ack_seq && th->ack_seq < tcb->snd_nxt) {
+	case TCP_SYN_RECEIVED:
+		/* 作为服务端,接收到了对方发送的ack,连接成功建立 */
+		if (tcb->snd_una <= th->ack_seq && th->ack_seq <= tcb->snd_nxt) {
 			if (tcp_synrecv_ack(tsk) < 0) {
 				return tcp_drop(tsk, skb);
 			}
-			tcb->snd_una = th->ack;
-			// tofix: 更新窗口
+			tcb->snd_una = th->ack_seq;
 			tcp_set_state(sk, TCP_ESTABLISHED);	
 		}
 		else {
+			tcp_send_reset(tsk);
 			return tcp_drop(tsk, skb);
 		}
 		break;
@@ -306,7 +314,7 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
             tcb->snd_una = th->ack_seq;
 			tcp_clean_rto_queue(sk, tcb->snd_una); 
 		}
-		/* ack_seq < snd_una 多半是出现了重发 */
+		/* ack_seq < snd_una 多半是出现了对已经发送数据的二次确认,直接丢弃即可 */
 		if (th->ack_seq < tcb->snd_una) {
 			return tcp_drop(tsk, skb);
 		}
@@ -314,61 +322,31 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 		if (th->ack_seq > tcb->snd_nxt) {
 			return tcp_drop(tsk, skb);
 		}
-		/* snd_una表示最小的未被确认的序列号 */
-		if (tcb->snd_una < th->ack_seq && th->ack_seq <= tcb->snd_nxt) {
-			// tofix: 更新发送窗口
-		}
 		break;
 	}
-
-	/* 如果写队列为空,标志着FIN被确认了 */
-	if (skb_queue_empty(&sk->write_queue)) {
-        switch (sk->state) {
-        case TCP_FIN_WAIT_1:
-            tcp_set_state(sk, TCP_FIN_WAIT_2);
-        case TCP_FIN_WAIT_2:
-            break;
-        case TCP_CLOSING:
-            /* In addition to the processing for the ESTABLISHED state, if
-             * the ACK acknowledges our FIN then enter the TIME-WAIT state,
-               otherwise ignore the segment. */
-            tcp_set_state(sk, TCP_TIME_WAIT);
-            break;
-        case TCP_LAST_ACK:
-            /* The only thing that can arrive in this state is an acknowledgment of our FIN.  
-             * If our FIN is now acknowledged, delete the TCB, enter the CLOSED state, and return. */
-            free_skb(skb);
-            return tcp_done(sk);
-        case TCP_TIME_WAIT:
-            /* TODO: The only thing that can arrive in this state is a
-               retransmission of the remote FIN.  Acknowledge it, and restart
-               the 2 MSL timeout. */
-            if (tcb->rcv_nxt == th->seq) {
-                tcp_sock_dbg("Remote FIN retransmitted?", sk);
-                tsk->flags |= TCP_FIN;
-                tcp_send_ack(sk);
-            }
-            break;
-        }
-    }
     
     /* 6.检查URG bit */
-	// tofix: 有时间实现urg
+	
 
+
+	/* 7. segment text */
 	pthread_mutex_lock(&sk->receive_queue.lock);
-
 	switch (sk->state) {
 	case TCP_ESTABLISHED:
 	case TCP_FIN_WAIT_1:
 	case TCP_FIN_WAIT_2:
-		tcp_data_queue(tsk, th, skb);
-		tsk->sk.ops->recv_notify(&tsk->sk);	/* 唤醒上层正在等待数据的进程 */
+		if (skb->dlen > 0) {	/* 有数据传递过来 */
+			tcp_data_queue(tsk, th, skb);
+			tsk->sk.ops->recv_notify(&tsk->sk);	/* 唤醒上层正在等待数据的进程 */
+		}
 		break;
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSING:
 	case TCP_LAST_ACK:
 	case TCP_TIME_WAIT:
-		/* 不应该运行到这里,因为才能够remote side接收到了一个FIN */
+		/* close_wait, closing, last_ack, time_wait这几个状态都有一个共同点,那就是
+		 此端接收到了彼端发送的fin,这表明彼端不会再发送数据(tcp数据)过来,如果发送了,我们忽
+		 略即可.*/
 		break;
 	}
 
@@ -377,12 +355,10 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	  第2个条件是保证,在FIN之前的数据全部接收成功了. */
 	if (th->fin && (tcb->rcv_nxt - skb->dlen) == skb->seq) {
 		tcp_sock_dbg("Received in-sequence FIN", sk);
-
         switch (sk->state) {
         case TCP_CLOSE:
         case TCP_LISTEN:
         case TCP_SYN_SENT:
-            // Do not process, since SEG.SEQ cannot be validated
             goto drop_and_unlock;
         }
 

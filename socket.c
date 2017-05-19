@@ -87,31 +87,6 @@ get_socket(pid_t pid, int fd)
 	return NULL;
 }
 
-/* socket_lookup 根据协议类型,两端的端口号寻找相对应的socket */
-struct socket *
-	socket_lookup(uint16_t remoteport, uint16_t localport)
-{
-	struct list_head *item;
-	struct socket *sock = NULL;
-	struct sock *sk = NULL;
-
-	pthread_rwlock_rdlock(&slock);
-	
-	list_for_each(item, &sockets) {
-		sock = list_entry(item, struct socket, list);
-		if (sock == NULL || sock->sk == NULL) continue;
-		sk = sock->sk;
-		if (sk->sport == localport && sk->dport == remoteport) { 
-			/* 协议类型,源端口和目的端口可以唯一确定一对连接 */
-			goto found;
-		}
-	}
-	sock = NULL;
-found:
-	pthread_rwlock_unlock(&slock);
-	return sock;
-}
-
 
 
 /* 
@@ -122,7 +97,7 @@ found:
  这里可以保证,传入的参数全部是有效的.所以可以删除掉错误检查的代码.
  */
 
-/* _socket函数构建一个socket,并且将其加入到sockets这个链表之中 */
+/* _socket函数构建一个socket,并且将其加入到connections这个链表之中 */
 int
 _socket(pid_t pid, int domain, int type, int protocol)
 {
@@ -147,7 +122,7 @@ _socket(pid_t pid, int domain, int type, int protocol)
 	}
 
 	pthread_rwlock_wrlock(&slock);
-	list_add_tail(&sock->list, &sockets); /* 将新构建的socket放入sockets链中 */
+	list_add_tail(&sock->list, &sockets); /* 将新构建的socket放入connections链中 */
     sock_amount++;
 	pthread_rwlock_unlock(&slock);
 	return sock->fd;					 /* sock->fd只是一个标志而已 */
@@ -183,6 +158,7 @@ _connect(pid_t pid, int sockfd, const struct sockaddr_in *addr)
 	return sock->ops->connect(sock, addr);
 }
 
+/* write 向pid进程连接的第sockfd号文件写入数据 */
 int 
 _write(pid_t pid, int sockfd, const void *buf, const unsigned int count)
 {
@@ -274,16 +250,16 @@ out:
 	return err;
 }
 
-struct socket *
+int
 	_accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr)
 {
 	struct socket * sock, *newsock;
-	int err = 0;
-	if (!sock) goto out;
+	int rc = -1, err;
+
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
 		print_err("Accept: could not find socket (fd %d && pid %d)\n",
 			sockfd, pid);
-		return NULL;
+		return -1;
 	}
 	newsock = alloc_socket(pid);
 	newsock->ops = sock->ops;
@@ -291,7 +267,15 @@ struct socket *
 	err = sock->ops->accept(sock, newsock, skaddr);
 	if (err < 0) {
 		free(newsock);
+		newsock = NULL;
+	}
+	else {
+		pthread_rwlock_wrlock(&slock);
+		list_add_tail(&newsock->list, &sockets); 
+		sock_amount++;
+		pthread_rwlock_unlock(&slock);
+		rc = newsock->fd;	/* 返回对应的文件描述符 */
 	}
 out:
-	return newsock;
+	return rc;
 }

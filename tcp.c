@@ -21,9 +21,8 @@ const char *tcp_dbg_states[] = {
 static void
 tcp_init_segment(struct tcphdr *th, struct iphdr *ih, struct sk_buff *skb) 
 {
-	ih->daddr = ntohl(ih->daddr);
-	ih->saddr = ntohl(ih->saddr);
-	
+	/* 需要说明一下的是,这里不需要转换ip头部的字节序,因为之前已经转换过了,每一层管每一层
+	 的事情,不需要越界,这是协议栈最大的一个特色. */
 	th->sport = ntohs(th->sport);		/* 16位源端口号   */
 	th->dport = ntohs(th->dport);		/* 16位目的端口号 */
 	th->seq = ntohl(th->seq);			/* 32位序列号		*/

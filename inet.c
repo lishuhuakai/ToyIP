@@ -24,6 +24,7 @@ static struct sock_ops sock_ops = {
 	.write = &inet_write,
 	.bind = &inet_bind,
 	.read = &inet_read,
+	.listen = &inet_listen,
 	.close = &inet_close,
 	.free = &inet_free,
 	.accept = &inet_accept,
@@ -63,11 +64,8 @@ inet_create(struct socket *sock, int protocol)
 								sock->ops == &sock_ops始终成立 */
 	sk = sk_alloc(skt->net_ops, protocol);	/* 构建sock */
 	
-	if (protocol == IPPROTO_UDP)
-		sk->protocol = IP_UDP;
-	else if (protocol == IPPROTO_TCP)
-		sk->protocol = IP_TCP;
-	else assert(0);
+	
+	sk->protocol = protocol;
 
 	sock_init_data(sock, sk);	/* 对sock的其他域做一些初始化工作. */
 	return 0;
@@ -83,57 +81,12 @@ int
 inet_connect(struct socket *sock, const struct sockaddr_in *addr)
 { 
 	struct sock *sk = sock->sk;
-	int rc = 0;
-
-	if (addr->sin_family == AF_UNSPEC) {
-		//sk->ops->disconnect(sk, flags);
-		sock->state = sk->err ? SS_DISCONNECTING : SS_UNCONNECTED;
-		goto out;
-	}
-
-    switch (sock->state) {
-    default:
-        sk->err = -EINVAL;
-        goto out;
-    case SS_CONNECTED:
-        sk->err = -EISCONN;
-        goto out;
-    case SS_CONNECTING:
-        sk->err = -EALREADY;
-        goto out;
-    case SS_UNCONNECTED:
-        sk->err = -EISCONN;
-        if (sk->state != TCP_CLOSE) {
-            goto out;
-        }
-
-        sk->ops->connect(sk, addr); /* 在这里调用net_ops中的方法来connnect */
-        sock->state = SS_CONNECTING;
-        sk->err = -EINPROGRESS;
-
-		if (sock->flags & O_NONBLOCK) {
-			goto out;
-		}
-		wait_sleep(&sock->sleep);
-
-		switch (sk->err) {
-		case -ETIMEDOUT:
-		case -ECONNREFUSED:
-			goto sock_error;
-		}
-
-		if (sk->err != 0) {
-			goto out;
-		}
-
-		sock->state = SS_CONNECTED;  /* 连接成功 */
-		break;
-	}
+	int rc = -1;
+	/* 不允许多次连接 */
+	if (sk->sport) goto out;
+	if (sk->ops->connect)
+		rc = sk->ops->connect(sk, addr);
 out:
-	return sk->err;
-sock_error:
-	rc = sk->err;
-	socket_free(sock);
 	return rc;
 }
 
@@ -153,16 +106,6 @@ inet_read(struct socket *sock, void *buf, int len)
 {
 	struct sock *sk = sock->sk;
 	return sk->ops->recv_buf(sk, buf, len);
-}
-
-/* inet_lookup 根据端口号寻找对应的socket */
-struct sock *
-	inet_lookup(uint16_t sport, uint16_t dport)
-{
-	/* udp和tcp需要区分对待 */
-	struct socket * sock = socket_lookup(sport, dport);
-	if (sock == NULL) return NULL;
-	return sock->sk;
 }
 
 int
@@ -216,9 +159,10 @@ inet_bind(struct socket *sock, struct sockaddr_in * skaddr)
 	bindaddr = ntohl(skaddr->sin_addr.s_addr);
 	bindport = ntohs(skaddr->sin_port);
 	if (!local_ipaddress(bindaddr)) goto err_out;
+	sk->saddr = bindaddr;
 
 	if (sk->ops->set_sport) {
-		if (err = sk->ops->set_sport(sk, bindaddr) < 0)	{	
+		if (err = sk->ops->set_sport(sk, bindport) < 0)	{	
 			/* 设定端口出错,可能是端口已经被占用 */
 			sk->saddr = 0;
 			goto err_out;
@@ -235,6 +179,19 @@ err_out:
 	return err;
 }
 
+int
+inet_listen(struct socket *sock, int backlog)
+{
+	struct sock *sk = sock->sk;
+	int err = -1;
+
+	if (sock->type != SOCK_STREAM)
+		return -1;
+
+	err = sk->ops->listen(sk, backlog);
+	return err;
+}
+
 /* inet_accept函数用于监听对端发送过来的连接 */
 int
 inet_accept(struct socket *sock, struct socket *newsock, 
@@ -248,12 +205,12 @@ inet_accept(struct socket *sock, struct socket *newsock,
 
 	newsk = sk->ops->accept(sk);
 	if (newsk) {
-		newsock->sk = newsk;
 		/* 将对方的地址信息记录下来 */
 		if (skaddr) {
 			skaddr->sin_addr.s_addr = htonl(newsk->daddr);
 			skaddr->sin_port = htons(newsk->dport);
 		}
+		sock_init_data(newsock, newsk);	/* 对struct sock部分做初始化工作 */
 		err = 0;
 	}
 out:

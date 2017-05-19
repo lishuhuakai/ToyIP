@@ -137,16 +137,16 @@ enum tcp_states {
 
 /* Transmission Control Block 传输控制块 */
 struct tcb {
-	/* sending side 发送方 */
-	uint32_t snd_una; // send unacknowledge #最小的未被确认的序列号
-	uint32_t snd_nxt; // send next #下一个要发送的序列号
+	/* sending side 发送方,指的是此端 */
+	uint32_t snd_una; // send unacknowledge #我们发送过去的,尚未被确认的最小的数据的序列号
+	uint32_t snd_nxt; // send next #下一个要发送的数据bit对应的序列号,即seq
 	uint32_t snd_wnd; // send window #发送窗口的大小
 	uint32_t snd_up;  // send urgent pointer
 	uint32_t snd_wl1; // segment sequence number used for last window update
 	uint32_t snd_wl2; // segment acknowledgment number used for last window update
 	uint32_t isn;	  // initial send sequence number #初始的序列号(自己产生的)
-	/* receiving side 接收方 */
-	uint32_t rcv_nxt; // receive next #下一个期望收到的数据的序号
+	/* receiving side 接收方,指的是彼端 */
+	uint32_t rcv_nxt; // receive next #下一个期望收到的数据的序号,一般用作发给对方的ack序号
 	uint32_t rcv_wnd; // receive window #接收窗口的大小
 	uint32_t rcv_up;  // receive urgent pointer
 	uint32_t irs;	  // initial receive sequence number #接收到的起始序列号(对方的起始序列号)
@@ -206,7 +206,8 @@ tcp_accept_enqueue(struct tcp_sock *tsk)
 
 /* tcp_sock.c */
 int generate_isn();
-int tcp_v4_init_sock(struct sock *sk);
+int tcp_init_sock();
+int tcp_init(struct sock *sk);
 int tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr);
 int tcp_write(struct sock *sk, const void *buf, int len);
 int tcp_read(struct sock *sk, void *buf, int len);
@@ -214,6 +215,7 @@ int tcp_recv_notify(struct sock *sk);
 int tcp_close(struct sock *sk);
 int tcp_free(struct sock *sk);
 int tcp_done(struct sock *sk);
+void tcp_syn_recvd_socks_enqueue(struct sock *sk);
 struct sock* tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport);
 
 /* tcp.c */
@@ -245,7 +247,7 @@ int tcp_send_ack(struct sock *sk);
 int tcp_send_fin(struct sock *sk);
 int tcp_send(struct tcp_sock *tsk, const void *buf, int len);
 int tcp_send_synack(struct sock *sk);
-int tcp_connect(struct sock *sk);
+int tcp_begin_connect(struct sock *sk);
 void tcp_handle_fin_state(struct sock *sk);
 int tcp_queue_fin(struct sock *sk);
 int tcp_send_reset(struct tcp_sock *tsk);

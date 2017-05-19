@@ -14,10 +14,10 @@
 static void
 ip_init_pkt(struct iphdr *ih)
 {
-	ih->saddr = ntohl(ih->saddr);	// 源ip地址
-	ih->daddr = ntohl(ih->daddr);	// 目的ip地址
-	ih->len = ntohs(ih->len);		// 16位总长度
-	ih->id = ntohs(ih->id);			// 唯一的标识
+	ih->saddr = ntohl(ih->saddr);	/* 源ip地址 */
+	ih->daddr = ntohl(ih->daddr);	/* 目的ip地址 */
+	ih->len = ntohs(ih->len);		/* 16位总长度 */
+	ih->id = ntohs(ih->id);			/* 唯一的标识 */
 }
 
 int

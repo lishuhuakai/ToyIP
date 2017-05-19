@@ -77,11 +77,11 @@ struct socket {
 	struct wait_lock sleep;
 };
 
-struct socket *socket_lookup(uint16_t remoteport, uint16_t localport);
 
 void * socket_ipc_open(void *args);
 
 int _socket(pid_t pid, int domain, int type, int protocol);
+int _listen(pid_t pid, int sockfd, int backlog);
 int _connect(pid_t pid, int sockfd, const struct sockaddr_in *addr);
 int _write(pid_t pid, int sockfd, const void *buf, const unsigned int count);
 int _read(pid_t pid, int sockfd, void* buf, const unsigned int count);
@@ -89,7 +89,7 @@ int _bind(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 int _close(pid_t pid, int sockfd);
 int _poll(pid_t pid, int sockfd);
 int _fcntl(pid_t pid, int fildes, int cmd, ...);
-struct socket * _accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
+int _accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 
 int socket_free(struct socket *sock);
 void socket_debug();

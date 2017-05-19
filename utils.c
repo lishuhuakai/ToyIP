@@ -47,6 +47,6 @@ ip_pton(char *addr)
 		perror("ERR: Parsing inet address failed");
 		exit(1);
 	}
-	// 需要注意的是inet_pton将字符形式的ip地址转换为网络字节序形式的ip地址
+	/* 需要注意的是inet_pton将字符形式的ip地址转换为网络字节序形式的ip地址 */
 	return dst;
 }

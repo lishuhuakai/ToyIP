@@ -19,7 +19,7 @@ struct net_ops {
 	int(*recv_pkg)(struct sock *sk, void *buf, int len);  /* for udp recvfrom function */
 	int(*bind)(struct sock *, struct sockaddr_in *);
 	int(*recv_notify)(struct sock *sk);
-	int(*close)(struct sock *sk);				
+	int(*close)(struct sock *sk);			
 	int(*listen)(struct sock *, int);			/* for tcp */
 	struct sock * (*accept)(struct sock *);		/* for tcp */
 	int(*set_sport)(struct sock *, uint16_t port);
@@ -32,6 +32,7 @@ struct sock {
 	struct socket *sock;				/* socket和sock是相互包含的,更确切的说,是一体两面 */ 
 	struct net_ops *ops;				/* 操纵网络的方法 */
 	struct wait_lock recv_wait;
+	struct wait_lock accept_wait;		/* tofix */
 	struct sk_buff_head receive_queue;	/* 接收队列  */
 	struct sk_buff_head write_queue;	/* 发送队列  */
  	pthread_mutex_t lock;				/* 多线程下需要加锁 */

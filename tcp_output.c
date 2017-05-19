@@ -73,10 +73,9 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 
 	tcp_out_dbg(thdr, sk, skb);
 
-	// fix:
-	// skb的seq和end_seq好像并没有什么用处
+	// tofix:
 	skb->seq = tcb->snd_una;		// 为什么要记录为确认的序列号
-	skb->end_seq = tcb->snd_una + skb->dlen; // 终止序列号
+	skb->end_seq = tcb->snd_una + skb->dlen; /* 终止序列号 */
 
 	thdr->sport = htons(thdr->sport);
 	thdr->dport = htons(thdr->dport);
@@ -122,7 +121,7 @@ tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 int
 tcp_send_synack(struct sock *sk)
 {
-	if (sk->state != TCP_SYN_SENT) {
+	if (sk->state != TCP_SYN_RECEIVED) {
 		print_err("TCP synack: Socket was not in correct state (SYN_SENT)\n");
 		return 1;
 	}
@@ -307,7 +306,7 @@ unlock:
 	pthread_mutex_unlock(&sk->write_queue.lock);
 }
 
-// tcp_rearm_rto_timer 用于重新设置重传定时器
+/* tcp_rearm_rto_timer 用于重新设置重传定时器 */
 void
 tcp_rearm_rto_timer(struct tcp_sock *tsk)
 {
@@ -324,7 +323,7 @@ tcp_rearm_rto_timer(struct tcp_sock *tsk)
 }
 
 int 
-tcp_connect(struct sock *sk)
+tcp_begin_connect(struct sock *sk)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	struct tcb *tcb = &tsk->tcb;
@@ -342,7 +341,8 @@ tcp_connect(struct sock *sk)
 
 	tcp_select_initial_window(&tsk->tcb.rcv_wnd); /* 接收窗口的大小 */
 
-	rc = tcp_send_syn(sk);
+	rc = tcp_send_syn(sk);  /* tcp_send_syn可能由于暂时找不到以太网地址的原因发送失败
+							但是存在定时器,隔一段时间再次尝试发送. */
 	tcb->snd_nxt++;  /* 消耗一个序列号 */
 	return rc;
 }
@@ -369,9 +369,9 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 		th = tcp_hdr(skb);
 		th->ack = 1;
 
-		if (slen == 0) {
-			th->psh = 1;	/* 紧急数据 */
-		}
+		//if (slen == 0) {
+		//	th->psh = 1;	/* 紧急数据 */
+		//}
 
 		if (tcp_queue_transmit_skb(&tsk->sk, skb) == -1) {
 			perror("Error on TCP skb queueing");
