@@ -5,12 +5,6 @@
 #include "sock.h"
 #include "route.h"
 
-void
-ip_send_check(struct iphdr *ihdr)
-{
-	uint32_t csum = checksum(ihdr, ihdr->ihl * 4, 0);
-	ihdr->csum = csum;
-}
 
 int
 ip_output(struct sock *sk, struct sk_buff *skb)
@@ -49,8 +43,8 @@ ip_output(struct sock *sk, struct sk_buff *skb)
 	ihdr->daddr = htonl(ihdr->daddr);
 	ihdr->saddr = htonl(ihdr->saddr);
 	ihdr->csum = htons(ihdr->csum);
-	
-	ip_send_check(ihdr);
+	ihdr->csum = checksum(ihdr, ihdr->ihl * 4, 0);
+
 
 	return dst_neigh_output(skb);
 }

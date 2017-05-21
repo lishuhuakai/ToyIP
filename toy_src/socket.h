@@ -79,7 +79,7 @@ int _bind(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 int _close(pid_t pid, int sockfd);
 int _accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 
-int socket_free(struct socket *sock);
+int free_socket(struct socket *sock);
 void socket_debug();
 
 #endif // !SOCKET_H

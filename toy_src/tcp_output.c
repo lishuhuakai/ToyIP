@@ -73,8 +73,9 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 
 	tcp_out_dbg(thdr, sk, skb);
 
-	// tofix:
-	skb->seq = tcb->snd_una;		// 为什么要记录为确认的序列号
+	/* 记录下要传递的数据包的起始和终止序号,这里主要是为了方便后面的重传
+	 具体可以参见tcp_input.c --> tcp_clean_retransmission_queue 函数. */
+	skb->seq = tcb->snd_una;
 	skb->end_seq = tcb->snd_una + skb->dlen; /* 终止序列号 */
 
 	thdr->sport = htons(thdr->sport);
@@ -98,6 +99,8 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 	return ip_output(sk, skb);
 }
 
+/* tcp_queue_transmit_skb 将要发送的内容加入write_queue,没有接受到ack的话,会一直重
+ 传该数据包,而tcp_transmit_skb函数不会如此. */
 static int
 tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 {
@@ -108,11 +111,11 @@ tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 	pthread_mutex_lock(&sk->write_queue.lock);
 
 	if (skb_queue_empty(&sk->write_queue)) {
-		tcp_rearm_rto_timer(tsk);
+		tcp_reset_retransmission_timer(tsk);
 	}
 
 	skb_queue_tail(&sk->write_queue, skb);	/* 将skb加入到发送队列的尾部 */
-	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt);
+	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt); /* 首先将数据发送一遍 */
 	tcb->snd_nxt += skb->dlen;
 	pthread_mutex_unlock(&sk->write_queue.lock);
 	return rc;
@@ -234,7 +237,6 @@ tcp_notify_user(struct sock *sk)
 	case TCP_CLOSE_WAIT:
 		wait_wakeup(&sk->sock->sleep);
 		break;
-
 	}
 }
 
@@ -245,11 +247,11 @@ tcp_connect_rto(uint32_t ts, void *arg)
 	struct tcb *tcb = &tsk->tcb;
 	struct sock *sk = &tsk->sk;
 
-	tcp_release_rto_timer(tsk);
+	tcp_release_retransmission_timer(tsk);
 
 	if (sk->state != TCP_ESTABLISHED) {
 		if (tsk->backoff > TCP_CONN_RETRIES) {
-			tsk->sk.err = -ETIMEDOUT;  // 超时
+			tsk->sk.err = -ETIMEDOUT;  /* 超时 */
 			tcp_free(sk);
 		}
 		else {
@@ -262,7 +264,7 @@ tcp_connect_rto(uint32_t ts, void *arg)
 				tcp_transmit_skb(sk, skb, tcb->snd_una);
 
 				tsk->backoff++;
-				tcp_rearm_rto_timer(tsk);
+				tcp_reset_retransmission_timer(tsk);
 			}
 			pthread_mutex_unlock(&sk->write_queue.lock);
 		}
@@ -274,6 +276,8 @@ tcp_connect_rto(uint32_t ts, void *arg)
 }
 
 
+/* tcp_retransmission_timeout 如果在规定的时间内还没有收到tcp数据报的确认,那么要重传
+该数据包. */
 static void
 tcp_retransmission_timeout(uint32_t ts, void *arg)
 {
@@ -282,7 +286,7 @@ tcp_retransmission_timeout(uint32_t ts, void *arg)
 	struct sock *sk = &tsk->sk;
 
 	pthread_mutex_lock(&sk->write_queue.lock);
-	tcp_release_rto_timer(tsk);
+	tcp_release_retransmission_timer(tsk);
 
 	struct sk_buff *skb = write_queue_head(sk);
 
@@ -296,6 +300,7 @@ tcp_retransmission_timeout(uint32_t ts, void *arg)
 	skb_reset_header(skb);
 
 	tcp_transmit_skb(sk, skb, tcb->snd_una);
+	/* 每个500个时间单位检查一次. */
 	tsk->retransmit = timer_add(500, &tcp_retransmission_timeout, tsk);
 
 	if (th->fin) {
@@ -306,12 +311,13 @@ unlock:
 	pthread_mutex_unlock(&sk->write_queue.lock);
 }
 
-/* tcp_rearm_rto_timer 用于重新设置重传定时器 */
+
+/* tcp_reset_retransmission_timer 用于重新设置重传定时器 */
 void
-tcp_rearm_rto_timer(struct tcp_sock *tsk)
+tcp_reset_retransmission_timer(struct tcp_sock *tsk)
 {
 	struct sock *sk = &tsk->sk;
-	tcp_release_rto_timer(tsk);	/* 释放掉之前的重传定时器 */
+	tcp_release_retransmission_timer(tsk);	/* 释放掉之前的重传定时器 */
 
 	if (sk->state == TCP_SYN_SENT) {	/* backoff 貌似是退避时间 */
 		tsk->retransmit = timer_add(TCP_SYN_BACKOFF << tsk->backoff, &tcp_connect_rto, tsk);
@@ -369,9 +375,10 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 		th = tcp_hdr(skb);
 		th->ack = 1;
 
-		//if (slen == 0) {
-		//	th->psh = 1;	/* 紧急数据 */
-		//}
+		if (slen == 0) {
+			th->psh = 1;	/*将推送标志bit置为1,表示接收方一旦接收到这个报文,
+							就应该尽快将数据推送给应用程序 */
+		}
 
 		if (tcp_queue_transmit_skb(&tsk->sk, skb) == -1) {
 			perror("Error on TCP skb queueing");
@@ -417,9 +424,10 @@ tcp_queue_fin(struct sock *sk)
 	th->ack = 1;
 
 	tcp_sock_dbg("Queueing fin", sk);
+	/* 调用tcp_queue_transmit_skb,如果没有及时收到对方对该数据报的ack,会重传该数据包 */
 	rc = tcp_queue_transmit_skb(sk, skb);
-	/* TCP规定,FIN报文即使不携带数据,它也要消耗掉一个序号 */
-	tcb->snd_nxt++;	/* FIN消耗一个序列号 */
+	/* TCP规定,fin报文即使不携带数据,它也要消耗掉一个序号 */
+	tcb->snd_nxt++;	/* fin消耗一个序列号 */
 
 	return rc;
 }

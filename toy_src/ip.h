@@ -78,7 +78,6 @@ ip_parse(char *addr)
 
 int ip_rcv(struct sk_buff *skb);
 int ip_output(struct sock *sk, struct sk_buff *skb);
-void ip_send_check(struct iphdr *ihdr);
 int dst_neigh_output(struct sk_buff *skb);
 
 #endif // IP_H

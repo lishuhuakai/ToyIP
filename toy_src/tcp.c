@@ -70,7 +70,7 @@ tcp_in(struct sk_buff *skb)
 	}
 
 	tcp_in_dbg(th, sk, skb);
-	tcp_input_state(sk, th, skb);
+	tcp_process(sk, th, skb);
 }
 
 
@@ -123,8 +123,12 @@ tcp_free(struct sock *sk)
 int
 tcp_done(struct sock *sk)
 {
+	list_del(&sk->link); /* 将其从sock链表中删除 */
 	tcp_free(sk);
-	return socket_free(sk->sock);
+	if (sk->sock) {
+		free_socket(sk->sock);
+	}
+	return 0;
 }
 
 void
@@ -132,14 +136,14 @@ tcp_clear_timers(struct sock *sk)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	pthread_mutex_lock(&sk->write_queue.lock);
-	tcp_stop_rto_timer(tsk);
+	tcp_stop_retransmission_timer(tsk);
 	tcp_stop_delack_timer(tsk);
 	pthread_mutex_unlock(&sk->write_queue.lock);
 	timer_cancel(tsk->keepalive);
 }
 
 void 
-tcp_stop_rto_timer(struct tcp_sock *tsk)
+tcp_stop_retransmission_timer(struct tcp_sock *tsk)
 {
 	if (tsk) {
 		timer_cancel(tsk->retransmit);
@@ -148,7 +152,7 @@ tcp_stop_rto_timer(struct tcp_sock *tsk)
 }
 
 void
-tcp_release_rto_timer(struct tcp_sock *tsk)
+tcp_release_retransmission_timer(struct tcp_sock *tsk)
 {
 	if (tsk) {
 		timer_release(tsk->retransmit);

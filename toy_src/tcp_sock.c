@@ -4,14 +4,15 @@
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /* 为了尽可能简洁,所以实现非常简单. */
 
-LIST_HEAD(tcp_unestablished_socks);		/* 连接尚未完全建立成功的sock */
-LIST_HEAD(tcp_establised_socks);		/* 连接成功建立sock */
-LIST_HEAD(tcp_syn_recvd_socks);			/* 状态为syn_received的sock所构成的sock */
+
+LIST_HEAD(tcp_connecting_or_listening_socks);
+LIST_HEAD(tcp_establised_or_syn_recvd_socks);
+
 
 void inline
 tcp_syn_recvd_socks_enqueue(struct sock *sk)
 {
-	list_add_tail(&sk->link, &tcp_syn_recvd_socks);
+	list_add_tail(&sk->link, &tcp_establised_or_syn_recvd_socks);
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -75,9 +76,8 @@ tcp_init(struct sock *sk)
 int
 tcp_init_sock()
 {
-	list_init(&tcp_unestablished_socks);
-	list_init(&tcp_establised_socks);
-	list_init(&tcp_syn_recvd_socks);
+	list_init(&tcp_connecting_or_listening_socks);
+	list_init(&tcp_establised_or_syn_recvd_socks);
 	return 0;
 }
 
@@ -89,7 +89,7 @@ tcp_port_used(uint16_t pt)
 	struct list_head* item;
 	struct sock* it;
 	/* 遍历监听队列,查看是否port已经被使用 */
-	list_for_each(item, &tcp_unestablished_socks) {
+	list_for_each(item, &tcp_connecting_or_listening_socks) {
 		it = list_entry(item, struct sock, link);
 		if (it->sport == pt) return 1;
 	}
@@ -193,16 +193,22 @@ tcp_close(struct sock *sk)
 		/* 服务端一般都处在listen状态 */
 	case TCP_LISTEN:
 		/* 客户端向服务端发送了syn,进入syn_sent状态 */
+		tcp_set_state(sk, TCP_CLOSE);
+		list_del(&sk->link);	/* 将其从tcp_connecting_or_listening_socks中删除 */
+		break;
 	case TCP_SYN_SENT:
 		/* 服务端接受到了现在处于syn_sent状态的客户端发送的syn,进入syn_received状态,
 		正常情况下,要向对方发送syn和ack */
 	case TCP_SYN_RECEIVED:
 	case TCP_ESTABLISHED:
+		tcp_queue_fin(sk);	/* 向对端发送fin,进入fin_wait_1状态 */
 		tcp_set_state(sk, TCP_FIN_WAIT_1);
-		tcp_queue_fin(sk);
 		break;
 	case TCP_CLOSE_WAIT:
+		/* close_wait属于被动关闭,但是这个状态还可以向对端发送数据,但是一旦向彼方发送了fin
+		立即进入lask_ack状态 */
 		tcp_queue_fin(sk);
+		tcp_set_state(sk, TCP_LAST_ACK);
 		break;
 	default:
 		print_err("Unknown TCP state for close\n");
@@ -235,16 +241,13 @@ tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr)
 	sk->sport = tcp_generate_port();			  /* 伪随机产生一个端口 */
 	sk->daddr = ntohl(daddr);
 	sk->saddr = ip_parse(stackaddr);			  /* sk中存储的是主机字节序 */
-	list_add_tail(&sk->link, &tcp_unestablished_socks);
+	list_add_tail(&sk->link, &tcp_connecting_or_listening_socks);
 	tcp_begin_connect(sk);					  /* 首先向对方发送ack */
-	if (tsk->flags & O_NONBLOCK) {
-		sk->err = -EISCONN;
-		goto out;
-	}
+
 	/* 接下来需要等待连接的成功建立 */
 	wait_sleep(&sk->sock->sleep);
-	list_del(&sk->link);				/* 将sk从unestablished_socks中删除 */
-	list_add_tail(&sk->link, &tcp_establised_socks);
+	list_del(&sk->link);	/* 将sk从之前的链表中删除 */
+	list_add_tail(&sk->link, &tcp_establised_or_syn_recvd_socks);
 out:
 	return rc;
 }
@@ -264,21 +267,20 @@ tcp_accept(struct sock* sk)
 	newtsk = tcp_accept_dequeue(tsk);
 
 	/* 连接建立成功 */
-	list_add_tail(&newtsk->sk.link, &tcp_establised_socks);
+	list_add_tail(&newtsk->sk.link, &tcp_establised_or_syn_recvd_socks);
 out:
 	return newtsk ? &newtsk->sk : NULL;
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-/* tcp_lookup_established_sock 用于搜寻已经建立了连接的sock */
+/* tcp_lookup_established_or_syn_recvd_sock 用于搜寻相关的sock */
 static struct sock*
-tcp_lookup_established_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
+tcp_lookup_establised_or_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
 {
 	struct sock *sk;
 	struct list_head* item;
-	/* 需要注意的是,查找的顺序是相反的. */
-	list_for_each(item, &tcp_establised_socks) {
+	list_for_each(item, &tcp_establised_or_syn_recvd_socks) {
 		sk = list_entry(item, struct sock, link);
 		if ((sk->saddr == src) && (sk->sport == sport) &&
 			(sk->daddr == dst) && (sk->dport == dport)) {
@@ -288,29 +290,14 @@ tcp_lookup_established_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t
 	return NULL;
 }
 
-static struct sock *
-tcp_lookup_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
-{
-	struct sock *sk;
-	struct list_head* item;
-	/* 需要注意的是,查找的顺序是相反的. */
-	list_for_each(item, &tcp_syn_recvd_socks) {
-		sk = list_entry(item, struct sock, link);
-		if ((sk->saddr == src) && (sk->sport == sport) &&
-			(sk->daddr == dst) && (sk->dport == dport)) {
-			return sk;
-		}
-	}
-	return NULL;
-}
 
-/* tcp_lookup_unestablished_sock 用于搜寻正在监听的sock */
+/* tcp_lookup_connecting_or_listening_sock 用于搜寻正在监听的sock */
 static struct sock *
-	tcp_lookup_unestablished_sock(uint32_t src, uint16_t sport)
+	tcp_lookup_connecting_or_listening_sock(uint32_t src, uint16_t sport)
 {
 	struct sock *sk;
 	struct list_head *item;
-	list_for_each(item, &tcp_unestablished_socks) {
+	list_for_each(item, &tcp_connecting_or_listening_socks) {
 		sk = list_entry(item, struct sock, link);
 		if ((sk->saddr == src) && (sk->sport == sport))
 			return sk;
@@ -323,9 +310,8 @@ struct sock *
 	tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
 {
 	struct sock *sk;
-	sk = tcp_lookup_syn_recvd_sock(dst, dport, src, sport);
-	if (!sk) sk = tcp_lookup_established_sock(dst, dport, src, sport);
-	if (!sk) sk = tcp_lookup_unestablished_sock(dst, dport);
+	sk = tcp_lookup_establised_or_syn_recvd_sock(dst, dport, src, sport);
+	if (!sk) sk = tcp_lookup_connecting_or_listening_sock(dst, dport);
 	return sk;
 }
 
@@ -343,6 +329,6 @@ tcp_listen(struct sock *sk, int backlog)
 
 	sk->state = TCP_LISTEN;		/* 进入监听状态 */
 	/* 接下来需要将sk加入监听队列 */
-	list_add_tail(&sk->link, &tcp_unestablished_socks);
+	list_add_tail(&sk->link, &tcp_connecting_or_listening_socks);
 	return 0;
 }

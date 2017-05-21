@@ -4,7 +4,6 @@
 #include "inet.h"
 #include "wait.h"
 
-static int sock_amount = 0;
 static LIST_HEAD(sockets);
 static pthread_rwlock_t slock = PTHREAD_RWLOCK_INITIALIZER;
 
@@ -57,17 +56,24 @@ alloc_socket(pid_t pid)
 	return sock;
 }
 
+
 int
-socket_free(struct socket *sock)
+free_socket(struct socket *sock)
 {
+	if (!sock) return -1;
+
 	if (sock->ops) {
 		sock->ops->free(sock);
 	}
 	pthread_rwlock_wrlock(&slock);
 	list_del(&sock->list);
 	wait_free(&sock->sleep);
+	/* 需要注意的是,这里并不删除struct socket中的struct sock,因为这个socket
+	对应的sock可能还需要处理一些事情. */
+	if (sock->sk) sock->sk->sock = NULL;
 	free(sock);
-    sock_amount--;
+	sock == NULL;
+
 	pthread_rwlock_unlock(&slock);
 	return 0;
 }
@@ -122,12 +128,11 @@ _socket(pid_t pid, int domain, int type, int protocol)
 
 	pthread_rwlock_wrlock(&slock);
 	list_add_tail(&sock->list, &sockets); /* 将新构建的socket放入connections链中 */
-    sock_amount++;
 	pthread_rwlock_unlock(&slock);
 	return sock->fd;					 /* sock->fd只是一个标志而已 */
 
 abort_socket:
-	socket_free(sock);
+	free_socket(sock);
 	return -1;
 }
 
@@ -186,12 +191,18 @@ int
 _close(pid_t pid, int sockfd)
 {
 	struct socket *sock;
+	int rc = -1;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
 		print_err("Close: could not find socket (fd %d && pid %d)\n",
 			sockfd, pid);
 		return -1;
 	}
-	return sock->ops->close(sock);
+	rc = sock->ops->close(sock);
+	if (rc == 0) {
+		list_del(&sock->list); /* 将其从socks链表中删除 */
+		free_socket(sock);
+	}
+	return rc;
 }
 
 
@@ -234,7 +245,6 @@ int
 	else {
 		pthread_rwlock_wrlock(&slock);
 		list_add_tail(&newsock->list, &sockets); 
-		sock_amount++;
 		pthread_rwlock_unlock(&slock);
 		rc = newsock->fd;	/* 返回对应的文件描述符 */
 	}

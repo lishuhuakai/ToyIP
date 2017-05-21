@@ -9,23 +9,26 @@ static int
 tcp_synrecv_ack(struct tcp_sock *tsk)
 {
 	if (tsk->parent->sk.state != TCP_LISTEN) return -1;
-	list_del(&tsk->sk.link);	/* 将其从tcp_syn_recvd_socks中移除 */
+	list_del(&tsk->sk.link); /* 将其从tcp_established_or_syn_recvd_socks中移除 */
 	tcp_accept_enqueue(tsk);
 	wait_wakeup(&tsk->parent->sk.accept_wait);
 	return 0;
 }
 
+/* tcp_clean_retransmission_queue对sk的重传队列进行清理,即将接收到了确认的数据丢弃 */
 static int
-tcp_clean_rto_queue(struct sock *sk, uint32_t una)
+tcp_clean_retransmission_queue(struct sock *sk, uint32_t una)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	struct sk_buff *skb;
 	int rc = 0;
 
 	pthread_mutex_lock(&sk->write_queue.lock);
+	/* 需要注意的是,在write_queue中的数据是严格按照发送顺序排列的. 
+	 所以write_queue中skb的end_seq升序排列 */
 	while ((skb = skb_peek(&sk->write_queue)) != NULL) {
 		/* 释放掉已经接收到了确认的数据 */
-		if (skb->end_seq <= una) { 
+		if (skb->end_seq <= una) {
 			skb_dequeue(&sk->write_queue);
 			skb->refcnt--;
 			free_skb(skb);
@@ -37,7 +40,7 @@ tcp_clean_rto_queue(struct sock *sk, uint32_t una)
 
 	/* skb == NULL表示要发送的数据全部发送完毕,并且都接收到了确认,也就是发送成功 */
 	if (skb == NULL) {
-		tcp_stop_rto_timer(tsk);
+		tcp_stop_retransmission_timer(tsk);
 	}
 
 	pthread_mutex_unlock(&sk->write_queue.lock);
@@ -195,7 +198,7 @@ tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 	if (th->ack) {  /* 对方确认了syn */
 		tcb->snd_una = th->ack_seq; /* una表示尚未确认的序列号 */
 		/* 可以将已经确认了的数据丢弃掉了 */
-		tcp_clean_rto_queue(sk, tcb->snd_una);
+		tcp_clean_retransmission_queue(sk, tcb->snd_una);
 	}
 
 	/* tcb->snd_una表示未经确认的序列号, isn表示第一次发送syn是采用的序列号
@@ -252,7 +255,7 @@ out:
 }
 
 int
-tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
+tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 {
 	struct tcp_sock *tsk = tcp_sk(sk); 
 	struct tcb *tcb = &tsk->tcb; /* transmission control block 传输控制块 */
@@ -271,7 +274,7 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	/* 1.检查sequence number */
 	if (!tcp_verify_segment(tsk, th, skb)) {
 		if (!th->rst) {
-			tcp_send_ack(sk);
+			tcp_send_ack(sk);	/* 告诉对方,我接收到了这个数据包 */
 		}
 		return tcp_drop(tsk, skb);
 	}
@@ -308,20 +311,16 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	case TCP_CLOSE_WAIT:	/* 接收到了FIN,执行被动关闭 */
 	case TCP_CLOSING:		/* 两端同时关闭,会进入closing状态 */
 	case TCP_LAST_ACK:
-		/* ack_seq确认了已经发送的一部分数据(> snd_una即未确认的序号的开始) */
+		/* 下面是确保对方发过来的ack_seq是对我们发给对方的并且还没有接收到确认的数据的确认 */
 		if (tcb->snd_una < th->ack_seq && th->ack_seq <= tcb->snd_nxt) {
-			/* 这里表示已经收到了对方的确认,首先要明白一点,确认不一定按序到达 */
+			/* 这里表示对方已经收到了我们的数据包,ack_seq是下次期望的顺序号,一旦接收到ack
+			 表示ack_seq序号之前的数据都已经收到了. */
             tcb->snd_una = th->ack_seq;
-			tcp_clean_rto_queue(sk, tcb->snd_una); 
+			tcp_clean_retransmission_queue(sk, tcb->snd_una); 
 		}
-		/* ack_seq < snd_una 多半是出现了对已经发送数据的二次确认,直接丢弃即可 */
-		if (th->ack_seq < tcb->snd_una) {
-			return tcp_drop(tsk, skb);
-		}
-		/* ack_seq > snd_nxt 这基本上不可能 */
-		if (th->ack_seq > tcb->snd_nxt) {
-			return tcp_drop(tsk, skb);
-		}
+		else tcp_drop(tsk, skb);
+		/* ack_seq < snd_una 多半是出现了对已经发送数据的二次确认,直接丢弃即可,
+		   ack_seq > snd_nxt 这基本上不可能 */
 		break;
 	}
     
@@ -345,14 +344,13 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	case TCP_LAST_ACK:
 	case TCP_TIME_WAIT:
 		/* close_wait, closing, last_ack, time_wait这几个状态都有一个共同点,那就是
-		 此端接收到了彼端发送的fin,这表明彼端不会再发送数据(tcp数据)过来,如果发送了,我们忽
-		 略即可.*/
+		 我们已经接收到了对方发送的fin,这意味着对方声明不会再发送数据(tcp数据)过来,如果发送
+		 了,我们完全忽略即可.*/
 		break;
 	}
 
-	/* 8, 检查fin
-	  rcv_nxt是下一个期望收到的数据的序列号, skb->seq是这个数据报的起始编号
-	  第2个条件是保证,在FIN之前的数据全部接收成功了. */
+	/* 8, 检查fin */
+	 /* 第2个条件是保证,在fin之前的数据全部接收成功了. */
 	if (th->fin && (tcb->rcv_nxt - skb->dlen) == skb->seq) {
 		tcp_sock_dbg("Received in-sequence FIN", sk);
         switch (sk->state) {
@@ -371,6 +369,7 @@ tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 		case TCP_SYN_RECEIVED:
 		case TCP_ESTABLISHED:  /* close_wait 被动关闭 */
 			tcp_set_state(sk, TCP_CLOSE_WAIT);
+			tsk->sk.ops->recv_notify(&tsk->sk);
 			break;
 		case TCP_FIN_WAIT_1:
 			/* 两端同时发送fin,进入closing状态 */

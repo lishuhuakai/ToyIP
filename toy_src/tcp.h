@@ -138,7 +138,7 @@ enum tcp_states {
 /* Transmission Control Block 传输控制块 */
 struct tcb {
 	/* sending side 发送方,指的是此端 */
-	uint32_t snd_una; // send unacknowledge #我们发送过去的,尚未被确认的最小的数据的序列号
+	uint32_t snd_una; // send unacknowledge #尚未被确认的数据的起始序列号
 	uint32_t snd_nxt; // send next #下一个要发送的数据bit对应的序列号,即seq
 	uint32_t snd_wnd; // send window #发送窗口的大小
 	uint32_t snd_up;  // send urgent pointer
@@ -220,8 +220,8 @@ struct sock* tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_
 
 /* tcp.c */
 void tcp_clear_timers(struct sock *sk);
-void tcp_stop_rto_timer(struct tcp_sock *tsk);
-void tcp_release_rto_timer(struct tcp_sock *tsk);
+void tcp_stop_retransmission_timer(struct tcp_sock *tsk);
+void tcp_release_retransmission_timer(struct tcp_sock *tsk);
 void tcp_stop_delack_timer(struct tcp_sock *tsk);
 void tcp_release_delack_timer(struct tcp_sock *tsk);
 void tcp_handle_fin_state(struct sock *sk);
@@ -229,7 +229,7 @@ void tcp_enter_time_wait(struct sock *sk);
 void _tcp_set_state(struct sock *sk, uint32_t state);
 void tcp_in(struct sk_buff *skb);
 void tcp_send_delack(uint32_t ts, void *arg);
-int tcp_input_state(struct sock *sk, struct tcphdr *th, struct sk_buff *skb);
+int tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb);
 void tcp_enter_time_wait(struct sock *sk);
 int tcp_udp_checksum(uint32_t saddr, uint32_t daddr, uint8_t proto, uint8_t *data, uint16_t len);
 int tcp_v4_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
@@ -241,7 +241,7 @@ struct sock *tcp_alloc_sock();
 
 /*tcp_output.c*/
 int tcp_receive(struct tcp_sock *tsk, void *buf, int len);
-void tcp_rearm_rto_timer(struct tcp_sock *tsk);
+void tcp_reset_retransmission_timer(struct tcp_sock *tsk);
 int tcp_send_challenge_ack(struct sock *sk, struct sk_buff *skb);
 int tcp_send_ack(struct sock *sk);
 int tcp_send_fin(struct sock *sk);

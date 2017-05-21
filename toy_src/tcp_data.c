@@ -61,10 +61,10 @@ tcp_data_dequeue(struct tcp_sock *tsk, void *user_buf, int userlen)
 		skb = skb_peek(&sk->receive_queue);
 		if (skb == NULL) break;
 		th = tcp_hdr(skb);
-		/* fix: tcp头部可能存在可选项,因此,直接从skb->payload开始拷贝可能存在问题.
-		  当然,如果数据读取的时候,已经将payload指向了数据部分,那就没有问题了. */
+		// tofix: tcp头部可能存在可选项,因此,直接从skb->payload开始拷贝可能存在问题.
+		// 当然,如果数据读取的时候,已经将payload指向了数据部分,那就没有问题了. 
 		dlen = (rlen + skb->dlen) > userlen ? (userlen - rlen) : skb->dlen;
-		memcpy(user_buf, skb->payload, dlen);		/* 拷贝数据 */
+		memcpy(user_buf, skb->payload, dlen);
 
 		skb->dlen -= dlen;
 		skb->payload += dlen;
@@ -79,10 +79,6 @@ tcp_data_dequeue(struct tcp_sock *tsk, void *user_buf, int userlen)
 		}
 	}
 
-	if (skb_queue_empty(&sk->receive_queue)) {
-		sk->poll_events &= ~POLLIN;
-	}
-
 	pthread_mutex_unlock(&sk->receive_queue.lock);
 	return rlen;
 }
@@ -95,7 +91,7 @@ tcp_data_queue(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb)
 	struct tcb *tcb = &tsk->tcb;
 	int rc = 0;
 
-	if (!tcb->rcv_wnd) {	/* 接受窗口为0的话,丢弃数据? */
+	if (!tcb->rcv_wnd) {	/* 接受窗口为0的话,丢弃数据 */
 		free_skb(skb);
 		return -1;
 	}
@@ -107,7 +103,6 @@ tcp_data_queue(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb)
 
 		skb->refcnt++;
 		skb_queue_tail(&sk->receive_queue, skb);  /* 添加到尾部 */
-		sk->poll_events |= POLLIN;
 		tcp_consume_ofo_queue(tsk);
 		tcp_stop_delack_timer(tsk);
 

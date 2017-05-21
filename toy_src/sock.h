@@ -38,8 +38,7 @@ struct sock {
  	pthread_mutex_t lock;				/* 多线程下需要加锁 */
 	int protocol;						/* 协议 */
 	int state;							/* 状态这个东西应该是tcp协议所独有 */
-	int err;
-	short int poll_events;			
+	int err;		
 	uint16_t sport;				
 	uint16_t dport;						/* 对方端口号 */
 	uint32_t saddr;						/* 源ip */

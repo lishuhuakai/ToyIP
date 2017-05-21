@@ -152,7 +152,7 @@ inet_bind(struct socket *sock, struct sockaddr_in * skaddr)
 	sk->saddr = bindaddr;
 
 	if (sk->ops->set_sport) {
-		if (err = sk->ops->set_sport(sk, bindport) < 0)	{	
+		if ((err = sk->ops->set_sport(sk, bindport)) < 0)	{
 			/* 设定端口出错,可能是端口已经被占用 */
 			sk->saddr = 0;
 			goto err_out;
@@ -191,7 +191,8 @@ inet_accept(struct socket *sock, struct socket *newsock,
 	struct sock *newsk;
 	int err = -1;
 
-	if (!sk) goto out;
+	/* 必须绑定在某个端口上 */
+	if (!sk || !sk->sport) goto out;
 
 	newsk = sk->ops->accept(sk);
 	if (newsk) {

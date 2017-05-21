@@ -213,14 +213,7 @@ udp_receive(struct udp_sock *usk, void *buf, int len)
 		if (rlen != -1) break;
 
 		/* 接下来rlen == -1,表示暂时没有udp数据可读取 */
-		if (sock->flags & O_NONBLOCK) {
-			/* udp可以读取0个字节的数据,这样,它会丢弃掉一个udp数据报 */
-			rlen = -EAGAIN;
-			break;
-		}
-		else {
-			wait_sleep(&usk->sk.recv_wait);
-		}
+		wait_sleep(&usk->sk.recv_wait);
 	}
 	return rlen;
 }
@@ -260,7 +253,6 @@ udp_data_queue(struct udp_sock *usk, struct udphdr *udphd, struct sk_buff *skb)
 	struct sock *sk = &usk->sk;
 	int rc = 0;
 	skb_queue_tail(&sk->receive_queue, skb);
-	sk->poll_events |= POLLIN;
 	return rc;
 }
 
