@@ -32,7 +32,6 @@ struct sock {
 	struct socket *sock;				/* socket和sock是相互包含的,更确切的说,是一体两面 */ 
 	struct net_ops *ops;				/* 操纵网络的方法 */
 	struct wait_lock recv_wait;
-	//struct wait_lock accept_wait;		/* tofix */
 	struct sk_buff_head receive_queue;	/* 接收队列  */
 	struct sk_buff_head write_queue;	/* 发送队列  */
  	pthread_mutex_t lock;				/* 多线程下需要加锁 */
@@ -53,6 +52,5 @@ write_queue_head(struct sock *sk) {
 struct sock *sk_alloc(struct net_ops *ops, int protocol);
 void sock_free(struct sock *sk);
 void sock_init_data(struct socket *sock, struct sock *sk);
-//void sock_connected(struct sock *sk);
 
 #endif // !SOCK_H

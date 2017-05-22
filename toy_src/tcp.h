@@ -164,7 +164,6 @@ struct tcp_sock {
 	struct list_head accept_queue;	/* 等待三次握手中的最后一次的ack */
 	struct list_head list;
 	struct wait_lock wait;	/* 等待接收或者连接 */
-	//struct wait_lock *wait_connect;	/* 等待被连接 */
 	struct tcp_sock *parent;
 	struct timer *retransmit;
 	struct timer *delack;

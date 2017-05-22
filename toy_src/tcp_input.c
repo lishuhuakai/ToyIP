@@ -183,7 +183,7 @@ tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 		}
 	}
 
-	/* 此端给彼端发送了一个syn,然后对方发过来一个rst */
+	/* 我们给对方发送了一个syn,试图连接对方,然后对方发过来一个rst */
 	if (th->rst) { 
 		// tofix: 接收到rst,应该断开连接
 		goto discard;
@@ -196,21 +196,21 @@ tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 
 	if (th->ack) {  /* 对方确认了syn */
 		tcb->snd_una = th->ack_seq; /* una表示尚未确认的序列号 */
-		/* 可以将已经确认了的数据丢弃掉了 */
+		/* 可以将syn数据报从write queue中移除了 */
 		tcp_clean_retransmission_queue(sk, tcb->snd_una);
 	}
 
-	/* tcb->snd_una表示未经确认的序列号, isn表示第一次发送syn是采用的序列号
-	  一般来说,未经确认的序列号不会小于isn */
+	/* 一般来说,未经确认的序列号不会小于isn */
 	if (tcb->snd_una > tcb->isn) { /* 作为客户端,接收到了服务端发送的syn, ack */
 		tcp_set_state(sk, TCP_ESTABLISHED); /* 连接建立成功 */
 		tcb->snd_una = tcb->snd_nxt; /* snd_nxt表示发送数据时下一个要采用的序列号 */
 		tcp_send_ack(&tsk->sk);  /* 发送ack,第3次握手 */
 		wait_wakeup(&tsk->wait);
-		//sock_connected(sk);
 	}
-	else { /* 作为服务器端,接收到了客户端发送的syn */
-		/* 发送syn以及ack,进入syn_received状态 */
+	else {
+		/* 这里对应着一种概率特小的事件,那就是两边同时试图连接对方,也就是同时打开的情况.
+		 这里两端都进入syn_received状态,一旦对方接收到发送的syn和ack,直接进入established
+		 状态.*/
 		tcp_set_state(sk, TCP_SYN_RECEIVED);
 		tcb->snd_una = tcb->isn;
 		tcp_send_synack(&tsk->sk); /* 第2次握手 */

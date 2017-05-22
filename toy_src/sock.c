@@ -34,11 +34,3 @@ sock_free(struct sock *sk)
 	pthread_mutex_destroy(&sk->lock);
 }
 
-
-//void
-//sock_connected(struct sock *sk)
-//{
-//	struct socket *sock = sk->sock;
-//	sk->err = 0;
-//	wait_wakeup(&sock->sleep);		/* 当有数据可读的时候,唤醒 */
-//}

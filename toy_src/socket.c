@@ -52,7 +52,6 @@ alloc_socket(pid_t pid)
 	sock->fd = fd++;	/* 不重复文件描述符 */
 	sock->ops = NULL;
 	sock->flags = O_RDWR;
-	//wait_init(&sock->sleep);
 	return sock;
 }
 
@@ -67,7 +66,6 @@ free_socket(struct socket *sock)
 	}
 	pthread_rwlock_wrlock(&slock);
 	list_del(&sock->list);
-	//wait_free(&sock->sleep);
 	/* 需要注意的是,这里并不删除struct socket中的struct sock,因为这个socket
 	对应的sock可能还需要处理一些事情. */
 	if (sock->sk) sock->sk->sock = NULL;
