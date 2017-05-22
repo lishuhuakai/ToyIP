@@ -19,7 +19,6 @@ sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sock = sock;
 
 	wait_init(&sk->recv_wait);
-	wait_init(&sk->accept_wait);
 	skb_queue_init(&sk->receive_queue);		/* 初始化接收队列 */
 	skb_queue_init(&sk->write_queue);		/* 初始化发送队列 */
 	pthread_mutex_init(&sk->lock, NULL);	/* 初始化锁 */
@@ -35,10 +34,11 @@ sock_free(struct sock *sk)
 	pthread_mutex_destroy(&sk->lock);
 }
 
-void
-sock_connected(struct sock *sk)
-{
-	struct socket *sock = sk->sock;
-	sk->err = 0;
-	wait_wakeup(&sock->sleep);		/* 当有数据可读的时候,唤醒 */
-}
+
+//void
+//sock_connected(struct sock *sk)
+//{
+//	struct socket *sock = sk->sock;
+//	sk->err = 0;
+//	wait_wakeup(&sock->sleep);		/* 当有数据可读的时候,唤醒 */
+//}

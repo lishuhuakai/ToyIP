@@ -163,8 +163,8 @@ struct tcp_sock {
 	struct list_head listen_queue;	/* 等待三次握手中的第二次ack+syn */
 	struct list_head accept_queue;	/* 等待三次握手中的最后一次的ack */
 	struct list_head list;
-	struct wait_lock *wait_accept;	/* 等待接收 */
-	struct wait_lock *wait_connect;	/* 等待被连接 */
+	struct wait_lock wait;	/* 等待接收或者连接 */
+	//struct wait_lock *wait_connect;	/* 等待被连接 */
 	struct tcp_sock *parent;
 	struct timer *retransmit;
 	struct timer *delack;
@@ -213,9 +213,14 @@ int tcp_write(struct sock *sk, const void *buf, int len);
 int tcp_read(struct sock *sk, void *buf, int len);
 int tcp_recv_notify(struct sock *sk);
 int tcp_close(struct sock *sk);
-int tcp_free(struct sock *sk);
+int tcp_free_sock(struct sock *sk);
 int tcp_done(struct sock *sk);
-void tcp_syn_recvd_socks_enqueue(struct sock *sk);
+
+void tcp_established_or_syn_recvd_socks_enqueue(struct sock *sk);
+void tcp_connecting_or_listening_socks_enqueue(struct sock *sk);
+void tcp_established_or_syn_recvd_socks_remove(struct sock *sk);
+void tcp_connecting_or_listening_socks_remove(struct sock *sk);
+
 struct sock* tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport);
 
 /* tcp.c */

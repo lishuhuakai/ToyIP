@@ -233,9 +233,10 @@ tcp_select_initial_window(uint32_t *rcv_wnd)
 static void
 tcp_notify_user(struct sock *sk)
 {
+	struct tcp_sock *tsk = tcp_sk(sk);
 	switch (sk->state) {
 	case TCP_CLOSE_WAIT:
-		wait_wakeup(&sk->sock->sleep);
+		wait_wakeup(&tsk->wait);
 		break;
 	}
 }
@@ -252,7 +253,7 @@ tcp_connect_rto(uint32_t ts, void *arg)
 	if (sk->state != TCP_ESTABLISHED) {
 		if (tsk->backoff > TCP_CONN_RETRIES) {
 			tsk->sk.err = -ETIMEDOUT;  /* ³¬Ê± */
-			tcp_free(sk);
+			tcp_free_sock(sk);
 		}
 		else {
 			pthread_mutex_lock(&sk->write_queue.lock);

@@ -7,7 +7,6 @@
 #include "timer.h"
 #include "wait.h"
 #include "tcp.h"
-#include "checksum.h"
 
 #ifdef DEBUG_TCP
 const char *tcp_dbg_states[] = {
@@ -105,9 +104,8 @@ generate_isn()
 
 
 
-
 int
-tcp_free(struct sock *sk)
+tcp_free_sock(struct sock *sk)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	pthread_mutex_lock(&sk->lock);
@@ -116,15 +114,15 @@ tcp_free(struct sock *sk)
 	tcp_clear_queues(tsk);
 	pthread_mutex_unlock(&sk->lock);
 
-	wait_wakeup(&sk->sock->sleep);
+	wait_wakeup(&tsk->wait);
 	return 0;
 }
 
 int
 tcp_done(struct sock *sk)
 {
-	list_del(&sk->link); /* 将其从sock链表中删除 */
-	tcp_free(sk);
+	tcp_established_or_syn_recvd_socks_remove(sk);
+	tcp_free_sock(sk);
 	if (sk->sock) {
 		free_socket(sk->sock);
 	}

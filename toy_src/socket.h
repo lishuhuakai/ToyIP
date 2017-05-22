@@ -64,7 +64,6 @@ struct socket {
 	int flags;
 	struct sock *sk;				/* sock记录的是关于连接的信息 */
 	struct sock_ops *ops;			/* 记录一套对socket操纵的方法 */
-	struct wait_lock sleep;
 };
 
 

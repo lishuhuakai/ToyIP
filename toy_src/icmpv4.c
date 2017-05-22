@@ -4,7 +4,6 @@
 #include "ip.h"
 #include "sock.h"
 #include <sys/time.h>
-#include "checksum.h"
 //
 // ICMP -- Internet控制报文协议.
 // 

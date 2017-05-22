@@ -1,5 +1,4 @@
 #include "udp.h"
-#include "checksum.h"
 
 struct net_ops udp_ops = {
 	.alloc_sock = &udp_alloc_sock,

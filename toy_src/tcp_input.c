@@ -9,9 +9,8 @@ static int
 tcp_synrecv_ack(struct tcp_sock *tsk)
 {
 	if (tsk->parent->sk.state != TCP_LISTEN) return -1;
-	list_del(&tsk->sk.link); /* 将其从tcp_established_or_syn_recvd_socks中移除 */
 	tcp_accept_enqueue(tsk);
-	wait_wakeup(&tsk->parent->sk.accept_wait);
+	wait_wakeup(&tsk->parent->wait);
 	return 0;
 }
 
@@ -65,7 +64,7 @@ tcp_reset(struct sock *sk) {
 		break;
 	}
 
-	tcp_free(sk);
+	tcp_free_sock(sk);
 }
 
 /* tcp_drop 用于丢弃数据报. */
@@ -77,13 +76,13 @@ tcp_drop(struct tcp_sock *tsk, struct sk_buff *skb)
 }
 
 static int
-tcp_verify_segment(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb)
+tcp_packet_filter(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb)
 {
 	struct tcb *tcb = &tsk->tcb;
 
 	if (skb->dlen > 0 && tcb->rcv_wnd == 0) return 0;
-	/* 接收到的包的序列号如果小于我们期待接收的下一个数据报的序列号(rcv_nxt),那么这个数据
-	包可能是重传的,同时,如果序列号大于rcv_nxt+rcv_wnd,表示可能是对方传送太多,当然也可能
+	/* 接收到的包的序列号如果小于我们期待接收的下一个数据报的序列号(rcv_nxt),那么这是一个
+	重传的数据包,同时,如果序列号大于rcv_nxt+rcv_wnd,表示可能是对方传送太多,当然也可能
 	是别的原因.总之这些都是无用的数据报. */
 	if (th->seq < tcb->rcv_nxt ||
 		th->seq > (tcb->rcv_nxt + tcb->rcv_wnd)) {
@@ -150,8 +149,8 @@ tcp_handle_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 	tc->snd_nxt = tc->isn;		/* 发送给对端的seq序号 */
 	tc->rcv_nxt = th->seq + 1;	/* 发送给对端的ack序号, 对方发送的syn消耗掉一个序号 */
 	tcp_send_synack(&newtsk->sk);
-	tcp_syn_recvd_socks_enqueue(&newtsk->sk);
-	tc->snd_nxt = tc->isn + 1;	/*  */
+	tcp_established_or_syn_recvd_socks_enqueue(&newtsk->sk);
+	tc->snd_nxt = tc->isn + 1;	/* syn消耗掉一个序号 */
 	tc->snd_una = tc->isn;
 discard:
 	free_skb(skb);
@@ -207,7 +206,8 @@ tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 		tcp_set_state(sk, TCP_ESTABLISHED); /* 连接建立成功 */
 		tcb->snd_una = tcb->snd_nxt; /* snd_nxt表示发送数据时下一个要采用的序列号 */
 		tcp_send_ack(&tsk->sk);  /* 发送ack,第3次握手 */
-		sock_connected(sk);
+		wait_wakeup(&tsk->wait);
+		//sock_connected(sk);
 	}
 	else { /* 作为服务器端,接收到了客户端发送的syn */
 		/* 发送syn以及ack,进入syn_received状态 */
@@ -271,8 +271,10 @@ tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 		return tcp_synsent(tsk, skb, th);
 	}
 
-	/* 1.检查sequence number */
-	if (!tcp_verify_segment(tsk, th, skb)) {
+	/* 1.检查sequence number, tcp_packet_filter是第一层过滤器,携带了tcp数据的包
+	 能够通过,其余的比如syn,fin等不携带数据的包,首先,要过滤掉重传的部分.
+	 */
+	if (!tcp_packet_filter(tsk, th, skb)) {
 		if (!th->rst) {
 			tcp_send_ack(sk);	/* 告诉对方,我接收到了这个数据包 */
 		}
@@ -280,10 +282,23 @@ tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	}
 
 	/* 2.检查rst bit */
+	
 
 	/* 3.检查安全性和优先级 */
 	
 	/* 4.检查syn */
+	if (th->syn) {
+		/* 仅listen和syn_sent两个状态可以接收syn,而事实上,这两个状态在上面已经处理过了,
+		 所以运行到这里,表示sk一定不处于这两个状态,此外,还需要注意一点:
+		 重传的syn数据包在前面已经被丢弃了.所以在这里,这个数据包是错误的. */
+		tcp_send_reset(tsk);
+		if (sk->state == TCP_SYN_RECEIVED && tsk->parent) {
+			/*此时tsk一定被挂在tcp_established_or_syn_recvd_socks链表上,所以要从
+			 链表中删除该sock */
+			tcp_established_or_syn_recvd_socks_remove(sk);
+			tcp_free_sock(sk);
+		}
+	}
 
 	/* 5.检查ack */
 	if (!th->ack) return tcp_drop(tsk, skb);
@@ -307,10 +322,13 @@ tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 		break;
 	case TCP_ESTABLISHED:
 	case TCP_FIN_WAIT_1:	/* 主动关闭 */
-	case TCP_FIN_WAIT_2:	/* FIN_WAIT_2状态依旧可以接收对方发送的数据,直到对方发送了FIN,然后进入TIME_WAIT状态 */
+	case TCP_FIN_WAIT_2:	/* fin_wait_2状态依旧可以接收对方发送的数据,直到对方发送了fin,然后进入time_wait状态 */
 	case TCP_CLOSE_WAIT:	/* 接收到了FIN,执行被动关闭 */
 	case TCP_CLOSING:		/* 两端同时关闭,会进入closing状态 */
 	case TCP_LAST_ACK:
+		/* 下面的条件判断是我们对tcp数据包的第二次过滤,这里主要是过滤掉携带tcp数据的重传
+		 数据,过滤掉序列号不正常的tcp数据包 */
+
 		/* 下面是确保对方发过来的ack_seq是对我们发给对方的并且还没有接收到确认的数据的确认 */
 		if (tcb->snd_una < th->ack_seq && th->ack_seq <= tcb->snd_nxt) {
 			/* 这里表示对方已经收到了我们的数据包,ack_seq是下次期望的顺序号,一旦接收到ack
@@ -318,7 +336,9 @@ tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
             tcb->snd_una = th->ack_seq;
 			tcp_clean_retransmission_queue(sk, tcb->snd_una); 
 		}
-		else tcp_drop(tsk, skb);
+		
+		if (th->ack_seq > tcb->snd_nxt) return tcp_drop(tsk, skb);
+		if (th->ack_seq < tcb->snd_una) return tcp_drop(tsk, skb);
 		/* ack_seq < snd_una 多半是出现了对已经发送数据的二次确认,直接丢弃即可,
 		   ack_seq > snd_nxt 这基本上不可能 */
 		break;
@@ -418,15 +438,7 @@ tcp_receive(struct tcp_sock *tsk, void *buf, int len)
 		/* 读取到了结尾 */
 		if (tsk->flags & TCP_FIN || rlen == len) break;
 
-		if (sock->flags & O_NONBLOCK) { 
-			if (rlen == 0) { 
-				rlen = -EAGAIN;  /* 立马返回 */
-			}
-			break;
-		}
-		else {
-			wait_sleep(&tsk->sk.recv_wait);
-		}
+		wait_sleep(&sk->recv_wait);
 	}
 	return rlen;
 }

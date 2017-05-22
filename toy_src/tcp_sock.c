@@ -9,10 +9,31 @@ LIST_HEAD(tcp_connecting_or_listening_socks);
 LIST_HEAD(tcp_establised_or_syn_recvd_socks);
 
 
+// tofix: 加锁
+
 void inline
-tcp_syn_recvd_socks_enqueue(struct sock *sk)
+tcp_established_or_syn_recvd_socks_enqueue(struct sock *sk)
 {
 	list_add_tail(&sk->link, &tcp_establised_or_syn_recvd_socks);
+}
+
+
+void inline
+tcp_established_or_syn_recvd_socks_remove(struct sock *sk)
+{
+	list_del(&sk->link);
+}
+
+void inline
+tcp_connecting_or_listening_socks_enqueue(struct sock *sk)
+{
+	list_add_tail(&sk->link, &tcp_connecting_or_listening_socks);
+}
+
+void inline
+tcp_connecting_or_listening_socks_remove(struct sock *sk)
+{
+	list_del(&sk->link);
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -48,6 +69,7 @@ struct sock *
 	tsk->keepalive = NULL;
 
 	tsk->delacks = 0;
+	tsk->parent = NULL;
 
 
 	tsk->sk.ops = &tcp_ops;
@@ -57,6 +79,7 @@ struct sock *
 	tsk->rmss = 1460;
 	tsk->smss = 1460;
 
+	wait_init(&tsk->wait);
 	skb_queue_init(&tsk->ofo_queue);
 	list_init(&tsk->accept_queue);
 	list_init(&tsk->listen_queue);
@@ -194,7 +217,8 @@ tcp_close(struct sock *sk)
 	case TCP_LISTEN:
 		/* 客户端向服务端发送了syn,进入syn_sent状态 */
 		tcp_set_state(sk, TCP_CLOSE);
-		list_del(&sk->link);	/* 将其从tcp_connecting_or_listening_socks中删除 */
+		/* 将其从tcp_connecting_or_listening_socks中删除 */
+		tcp_connecting_or_listening_socks_remove(sk);
 		break;
 	case TCP_SYN_SENT:
 		/* 服务端接受到了现在处于syn_sent状态的客户端发送的syn,进入syn_received状态,
@@ -241,13 +265,13 @@ tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr)
 	sk->sport = tcp_generate_port();			  /* 伪随机产生一个端口 */
 	sk->daddr = ntohl(daddr);
 	sk->saddr = ip_parse(stackaddr);			  /* sk中存储的是主机字节序 */
-	list_add_tail(&sk->link, &tcp_connecting_or_listening_socks);
+	tcp_connecting_or_listening_socks_enqueue(sk);
 	tcp_begin_connect(sk);					  /* 首先向对方发送ack */
 
 	/* 接下来需要等待连接的成功建立 */
-	wait_sleep(&sk->sock->sleep);
-	list_del(&sk->link);	/* 将sk从之前的链表中删除 */
-	list_add_tail(&sk->link, &tcp_establised_or_syn_recvd_socks);
+	wait_sleep(&tsk->wait);
+	tcp_connecting_or_listening_socks_remove(sk);
+	tcp_established_or_syn_recvd_socks_enqueue(sk);
 out:
 	return rc;
 }
@@ -261,13 +285,13 @@ tcp_accept(struct sock* sk)
 	struct tcp_sock *newtsk = NULL;	/* 期待构建一个新的连接 */
 
 	while (list_empty(&tsk->accept_queue)) {
-		if (wait_sleep(&tsk->sk.accept_wait) < 0) goto out;	/* 等待被唤醒 */
+		if (wait_sleep(&tsk->wait) < 0) goto out;	/* 等待被唤醒 */
 	}
 
 	newtsk = tcp_accept_dequeue(tsk);
 
-	/* 连接建立成功 */
-	list_add_tail(&newtsk->sk.link, &tcp_establised_or_syn_recvd_socks);
+	/* 连接建立成功, 这里不用再次加入,因为唤醒的时候newsk已经在队列中了. */
+
 out:
 	return newtsk ? &newtsk->sk : NULL;
 }
@@ -329,6 +353,6 @@ tcp_listen(struct sock *sk, int backlog)
 
 	sk->state = TCP_LISTEN;		/* 进入监听状态 */
 	/* 接下来需要将sk加入监听队列 */
-	list_add_tail(&sk->link, &tcp_connecting_or_listening_socks);
+	tcp_connecting_or_listening_socks_enqueue(sk);
 	return 0;
 }
