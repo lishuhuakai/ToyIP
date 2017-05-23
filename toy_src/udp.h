@@ -43,7 +43,7 @@ struct sock *udp_lookup_sock(uint16_t port);
 void udp_in(struct sk_buff *skb);
 void udp_init(void);
 struct sock * udp_alloc_sock();
-int udp_init_sock(struct sock *sk);
+int udp_sock_init(struct sock *sk);
 int udp_write(struct sock *sk, const void *buf, int len);
 int udp_read(struct sock *sk, void *buf, int len);
 int udp_send(struct sock *usk, const void *buf, int len);
@@ -51,8 +51,8 @@ int udp_connect(struct sock *sk, const struct sockaddr_in *addr);
 int udp_close(struct sock *sk);
 int udp_receive(struct udp_sock *usk, void *buf, int len);
 int udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen);
+uint16_t udp_generate_port();
 
-int
-udp_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
+int udp_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
 
 #endif // !UDP_H

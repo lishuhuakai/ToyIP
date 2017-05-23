@@ -204,9 +204,9 @@ tcp_accept_enqueue(struct tcp_sock *tsk)
 }
 
 /* tcp_sock.c */
-int generate_isn();
-int tcp_init_sock();
-int tcp_init(struct sock *sk);
+int tcp_generate_isn();
+int tcp_sock_init(struct sock *sk);
+int tcp_init();
 int tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr);
 int tcp_write(struct sock *sk, const void *buf, int len);
 int tcp_read(struct sock *sk, void *buf, int len);
@@ -239,7 +239,7 @@ int tcp_udp_checksum(uint32_t saddr, uint32_t daddr, uint8_t proto, uint8_t *dat
 int tcp_v4_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
 void tcp_select_initial_window(uint32_t *rcv_wnd);
 
-int generate_isn();
+int tcp_generate_isn();
 uint16_t tcp_generate_port();
 struct sock *tcp_alloc_sock();
 

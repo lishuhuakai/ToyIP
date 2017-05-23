@@ -145,7 +145,7 @@ tcp_handle_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 	struct tcb *tc = &newtsk->tcb;
 	/* 准备向对方发送ack以及syn */
 	tc->irs = th->seq;
-	tc->isn = generate_isn();
+	tc->isn = tcp_generate_isn();
 	tc->snd_nxt = tc->isn;		/* 发送给对端的seq序号 */
 	tc->rcv_nxt = th->seq + 1;	/* 发送给对端的ack序号, 对方发送的syn消耗掉一个序号 */
 	tcp_send_synack(&newtsk->sk);

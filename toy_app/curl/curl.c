@@ -57,7 +57,6 @@ main(int argc, char **argv)
         return 1;
     }
     printf("I try to invoke lvl_socket\n");
-    lvl_init();
     sock = lvl_socket(AF_INET, SOCK_STREAM, 0);
 
     if (lvl_connect(sock, &addr) == -1) {

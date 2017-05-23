@@ -43,7 +43,7 @@ static struct sock* tcp_accept(struct sock* sk);
 
 struct net_ops tcp_ops = {
 	.alloc_sock = &tcp_alloc_sock,
-	.init = &tcp_init,
+	.init = &tcp_sock_init,
 	.connect = &tcp_v4_connect,
 	.accept = &tcp_accept,
 	.listen = &tcp_listen,
@@ -88,24 +88,28 @@ struct sock *
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-/* tcp_init 每构建一个tcp_sock,都会调用这个函数对该tcp_sock做初始化 */
+/**\
+ * tcp_init 对整个tcp协议做一些初始化工作.
+\**/
 int
-tcp_init(struct sock *sk)
+tcp_init()
 {
 	return 0;
 }
 
-/* tcp_init_sock 对整个tcp协议做一些初始化工作 */
+/**\
+ * tcp_sock_init 每构建一个tcp_sock,都会调用这个函数对该tcp_sock做初始化 
+\**/
 int
-tcp_init_sock()
+tcp_sock_init(struct sock *sk)
 {
-	list_init(&tcp_connecting_or_listening_socks);
-	list_init(&tcp_establised_or_syn_recvd_socks);
 	return 0;
 }
 
 
-/* tcp_port_used用于判断port端口是否已经被使用 */
+/**\
+ * tcp_port_used用于判断port端口是否已经被使用.
+\**/
 static int
 tcp_port_used(uint16_t pt)
 {
@@ -120,7 +124,9 @@ tcp_port_used(uint16_t pt)
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* tcp_set_sport用于设置源端口,需要保证,port是主机字节序 */
+/**\
+ * tcp_set_sport用于设置源端口,需要保证,port是主机字节序.
+\**/
 static int
 tcp_set_sport(struct sock *sk, uint16_t port)
 {
@@ -261,6 +267,9 @@ tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr)
 	uint16_t dport = ((struct sockaddr_in *)addr)->sin_port;
 	uint32_t daddr = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
 	int rc = 0;
+	// tofix: 如果之前已经连接过,这里不能再次连接
+	//struct sock* exist_sk = tcp_lookup_establised_or_syn_recvd_sock();
+
 	sk->dport = ntohs(dport);
 	sk->sport = tcp_generate_port();			  /* 伪随机产生一个端口 */
 	sk->daddr = ntohl(daddr);
@@ -298,7 +307,9 @@ out:
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-/* tcp_lookup_established_or_syn_recvd_sock 用于搜寻相关的sock */
+/**\
+ * tcp_lookup_established_or_syn_recvd_sock 用于搜寻相关的sock.
+\**/
 static struct sock*
 tcp_lookup_establised_or_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
 {
@@ -315,7 +326,9 @@ tcp_lookup_establised_or_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t d
 }
 
 
-/* tcp_lookup_connecting_or_listening_sock 用于搜寻正在监听的sock */
+/**\
+ * tcp_lookup_connecting_or_listening_sock 用于搜寻正在监听的sock.
+\**/
 static struct sock *
 	tcp_lookup_connecting_or_listening_sock(uint32_t src, uint16_t sport)
 {
@@ -329,7 +342,9 @@ static struct sock *
 	return NULL;
 }
 
-/* tcp_lookup_sock根据给出的四元组寻找对应的sock */
+/**\
+ * tcp_lookup_sock根据给出的四元组寻找对应的sock.
+\**/
 struct sock *
 	tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
 {

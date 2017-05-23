@@ -96,7 +96,7 @@ tcp_generate_port()
 }
 
 int
-generate_isn()
+tcp_generate_isn()
 {
 	/* todo: 更好的方法来产生isn */
 	return (int)time(NULL) *rand();

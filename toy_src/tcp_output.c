@@ -337,7 +337,7 @@ tcp_begin_connect(struct sock *sk)
 	int rc = 0;
 
 	tsk->tcp_header_len = sizeof(struct tcphdr);
-	tcb->isn = generate_isn();  /* isn是随机产生的一个序列号 */
+	tcb->isn = tcp_generate_isn();  /* isn是随机产生的一个序列号 */
 	tcb->snd_wnd = 0;
 	tcb->snd_wl1 = 0;
 
