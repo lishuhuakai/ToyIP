@@ -14,7 +14,9 @@ tcp_synrecv_ack(struct tcp_sock *tsk)
 	return 0;
 }
 
-/* tcp_clean_retransmission_queue对sk的重传队列进行清理,即将接收到了确认的数据丢弃 */
+/**\
+ * tcp_clean_retransmission_queue对sk的重传队列进行清理,即将接收到了确认的数据丢弃. 
+\**/
 static int
 tcp_clean_retransmission_queue(struct sock *sk, uint32_t una)
 {
@@ -67,7 +69,9 @@ tcp_reset(struct sock *sk) {
 	tcp_free_sock(sk);
 }
 
-/* tcp_drop 用于丢弃数据报. */
+/**\
+ * tcp_drop 用于丢弃数据报. 
+\**/
 static inline int
 tcp_drop(struct tcp_sock *tsk, struct sk_buff *skb)
 {
@@ -117,7 +121,9 @@ tcp_listen_child_sock(struct tcp_sock *tsk, struct tcphdr *thr, struct iphdr * i
 	return newtsk;
 }
 
-/* tcp_listen用于监听 */
+/**\
+ * tcp_listen用于监听. 
+\**/
 static int 
 tcp_handle_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 {

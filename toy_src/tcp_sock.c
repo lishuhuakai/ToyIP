@@ -123,7 +123,6 @@ tcp_port_used(uint16_t pt)
 	return 0;
 }
 
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /**\
  * tcp_set_sport用于设置源端口,需要保证,port是主机字节序.
 \**/
@@ -267,8 +266,6 @@ tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr)
 	uint16_t dport = ((struct sockaddr_in *)addr)->sin_port;
 	uint32_t daddr = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
 	int rc = 0;
-	// tofix: 如果之前已经连接过,这里不能再次连接
-	//struct sock* exist_sk = tcp_lookup_establised_or_syn_recvd_sock();
 
 	sk->dport = ntohs(dport);
 	sk->sport = tcp_generate_port();			  /* 伪随机产生一个端口 */
@@ -340,6 +337,22 @@ static struct sock *
 			return sk;
 	}
 	return NULL;
+}
+
+/**\
+ * tcp_connection_exist 用于判断连接是否已经存在,主要是避免试图多次连接.
+\**/
+static int
+tcp_connection_exist(uint32_t dst, uint16_t dport)
+{
+	struct sock *sk;
+	struct list_head *item;
+	list_for_each(item, &tcp_establised_or_syn_recvd_socks) {
+		sk = list_entry(item, struct sock, link);
+		if ((sk->daddr == dst) && (sk->dport == dport))
+			return 1;
+	}
+	return 0;
 }
 
 /**\
