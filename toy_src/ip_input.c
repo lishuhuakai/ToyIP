@@ -47,10 +47,13 @@ ip_rcv(struct sk_buff *skb)
 		/* 无效的数据报 */
 		goto drop_pkt;
 	}
-	/* todo: ip数据报重组
-	  ip协议并不是一个可靠的协议,它没有tcp协议的重传和确认机制.当上层应用数据报过大,超过了
-	  MTU,那么在ip层就要进行拆包,将大数据拆分成小数据发送出去,对方接收到之后也要进行组包.
-	 */
+
+	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	  todo: ip数据报重组
+	  ip协议并不是一个可靠的协议,它没有tcp协议的重传和确认机制.
+	  当上层应用数据报过大,超过了MTU,那么在ip层就要进行拆包,将
+	  大数据拆分成小数据发送出去,对方接收到之后也要进行组包.
+	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 	ip_init_pkt(ih);
 	ip_dbg("in", ih);
@@ -62,9 +65,9 @@ ip_rcv(struct sk_buff *skb)
     case IP_TCP:
         tcp_in(skb);
         return 0;
-	case IP_UDP:
-		udp_in(skb);
-		return 0;
+	//case IP_UDP:
+		//udp_in(skb);
+		//return 0;
     default:
         print_err("Unknown IP header proto\n");
         goto drop_pkt;

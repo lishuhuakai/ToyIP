@@ -44,9 +44,9 @@ struct sock_ops {
 	int(*bind)(struct socket *sock, struct sockaddr_in *);	/* 绑定到某个地址 */
 	int(*close)(struct socket *sock);
 	int(*free)(struct socket *sock);
-	int(*sendto)(int sockfd, const void *buf, size_t len, int flags,
+	int(*sendto)(struct socket *sock, const void *buf, size_t len,
 		const struct sockaddr_in *dest_addr);
-	int(*recvfrom)(int sockfd, void *buf, size_t len, int flags,
+	int(*recvfrom)(struct socket *sock, void *buf, size_t len, 
 		struct sockaddr_in *src_addr);
 };
 
@@ -77,6 +77,8 @@ int _read(pid_t pid, int sockfd, void* buf, const unsigned int count);
 int _bind(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 int _close(pid_t pid, int sockfd);
 int _accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
+int _recvfrom(pid_t pid, int sockfd, void *buf, int count, struct sockaddr_in *saddr);
+int _sendto(pid_t pid, int sockfd, const void *buf, int len, const struct sockaddr_in *saddr);
 
 int free_socket(struct socket *sock);
 void socket_debug();

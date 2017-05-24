@@ -2,31 +2,46 @@
 #include "utils.h"
 #include "ip.h"
 #include "udp.h"
+#include <sys/types.h>
 
 static int udp_sock_amount = 0;
-static LIST_HEAD(sockets);
+static LIST_HEAD(udp_socks);
 static pthread_rwlock_t slock = PTHREAD_RWLOCK_INITIALIZER;
 
-
 struct sock *
-	udp_lookup_sock(uint16_t port)
+	udp_lookup_sock(uint16_t dport)
 {
-
+	struct sock *sk;
+	struct list_head *item;
+	list_for_each(item, &udp_socks) {
+		sk = list_entry(item, struct sock, link);
+		if (sk->dport == dport)
+			return sk;
+	}
+	return NULL;
 }
 
+
+int udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
+static int udp_set_sport(struct sock *sk, uint16_t sport);
 
 struct net_ops udp_ops = {
 	.alloc_sock = &udp_alloc_sock,
 	.init = &udp_sock_init,
-	//.send = &udp_write,
+	.send_buf = &udp_write,
 	.connect = &udp_connect,
-	//.sendto = &udp_sendto,
-	//.recvfrom = &udp_recvfrom,
-	//.read = &udp_read,
+	.sendto = &udp_sendto,
+	.recvfrom = &udp_recvfrom,
+	.recv_buf = &udp_read,
 	.close = &udp_close,
+	.set_sport = &udp_set_sport,
 };
 
-void udp_init()
+/**\
+ * udp_init 整个udp协议如果有什么需要初始化的东西,可以放到这个函数中.
+\**/
+void 
+udp_init()
 {
 	
 }
@@ -35,7 +50,6 @@ void udp_init()
 int
 udp_close(struct sock *sk)
 {
-	/* udp本来就是一个没有状态的协议,不存在什么关闭不关闭. */
 	return 0;
 }
 
@@ -47,16 +61,17 @@ udp_sock_init(struct sock *sk)
 }
 
 
-int 
-udp_sendto()
-{
-
-}
-
+/**\
+ *	udp_recvfrom 用于捕获saddr地址传递过来的数据.
+\**/
 int
-udp_recvfrom()
+udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr)
 {
-
+	int rc = -1;
+	sock_init(sk);
+	list_add_tail(&sk->link, &udp_socks);
+	rc = udp_read(sk, buf, len);
+	return rc;
 }
 
 int
@@ -67,7 +82,6 @@ udp_connect(struct sock *sk, const struct sockaddr_in *addr)
 	extern char * stackaddr;
 
 	// todo: 对ip地址做检查
-
 	uint16_t dport = addr->sin_port;
 	uint32_t daddr = addr->sin_addr.s_addr;
 	sk->dport = ntohs(dport);
@@ -80,8 +94,7 @@ udp_connect(struct sock *sk, const struct sockaddr_in *addr)
 int
 udp_write(struct sock *sk, const void *buf, int len)
 {
-	// tofix:
-	struct udp_sock *usk; // = udp_sock(sk);
+	struct udp_sock *usk = udp_sk(sk);
 
 	if (len < 0 || len > UDP_MAX_BUFSZ)
 		return -1;
@@ -89,31 +102,50 @@ udp_write(struct sock *sk, const void *buf, int len)
 	return udp_send(&usk->sk, buf, len);
 }
 
-static struct sk_buff *
+struct sk_buff *
 udp_alloc_skb(int size)
 {
 	int reserved = ETH_HDR_LEN + IP_HDR_LEN + UDP_HDR_LEN + size;
 	struct sk_buff *skb = alloc_skb(reserved);
+	
+	skb_reserve(skb, reserved);
 	skb->protocol = IP_UDP; 	/* udp协议 */
 	skb->dlen = size;
+
 	return skb;
 }
 
+
+int 
+udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in *skaddr)
+{
+	extern char *stackaddr;
+	
+	struct sock *fake_sk = udp_alloc_sock();
+	fake_sk->daddr = ntohl(skaddr->sin_addr.s_addr);
+	fake_sk->dport = ntohs(skaddr->sin_port);
+	fake_sk->sport = udp_generate_port();
+	fake_sk->saddr = ip_parse(stackaddr);
+	
+	udp_send(fake_sk, buf, size);
+}
+
 int
-udp_send(struct sock *usk, const void *buf, int len)
+udp_send(struct sock *sk, const void *buf, int len)
 {
 	struct sk_buff *skb;
 	struct udphdr *udphd;
-	int slen = len;
 
 	// tofix: 可能需要将数据分片,如果数据过大的话,当然,这应该发生在ip层 
 	skb = udp_alloc_skb(len);
 	skb_push(skb, len);
 	memcpy(skb->data, buf, len);
+
+	skb_push(skb, UDP_HDR_LEN);
 	udphd = udp_hdr(skb);
 
-	udphd->sport = usk->sport;
-	udphd->dport = usk->dport;
+	udphd->sport = sk->sport;
+	udphd->dport = sk->dport;
 	udphd->len = skb->len;
 
 	udpdbg("udpout");
@@ -121,8 +153,8 @@ udp_send(struct sock *usk, const void *buf, int len)
 	udphd->sport = htons(udphd->sport);
 	udphd->dport = htons(udphd->dport);
 	udphd->len = htons(udphd->len);
-	udphd->csum = udp_checksum(skb, htonl(usk->saddr), htonl(usk->daddr));
-	return ip_output(usk, skb);
+	udphd->csum = udp_checksum(skb, htonl(sk->saddr), htonl(sk->daddr));
+	return ip_output(sk, skb);
 }
 
 struct sock *
@@ -134,41 +166,22 @@ struct sock *
 	return &usk->sk;
 }
 
-static void
-udp_process(struct sk_buff *skb, struct iphdr *iphd, struct udphdr *udphd)
+void 
+udp_free_sock(struct sock *sk)
 {
-	struct sock *sk;
-	sk = udp_lookup_sock(udphd->dport);
-	if (!sk) {			/* 如果没有找到对应的socket */
-						// icmp_send();
-		goto drop;
-	}
-
-	list_add_tail(&skb->list, &sk->receive_queue.head);	/* 放入接收队列 */
-	sk->ops->recv_notify(sk);
-	//free_sock(sk);
-	return;
-drop:
-	free_skb(skb);
+	struct udp_sock *usk = udp_sk(sk);
+	free(usk);
 }
+
 
 int
 udp_read(struct sock *sk, void *buf, int len)
 {
 	/* udp可以读0个字节. */
-	// tofix:
-	struct udp_sock *usk; //udp_sk(sk);
-	if (len < 0)
-		return -1;
-	return udp_receive(usk, buf, len);
-}
-
-int
-udp_receive(struct udp_sock *usk, void *buf, int len)
-{
+	struct udp_sock *usk = udp_sk(sk);
 	int rlen = 0;
-	struct sock *sk = &usk->sk;
-	struct socket *sock = sk->sock;
+	if (len < 0) return -1;
+
 	memset(buf, 0, len);
 
 	for (;;) {
@@ -177,7 +190,35 @@ udp_receive(struct udp_sock *usk, void *buf, int len)
 		if (rlen != -1) break;
 
 		/* 接下来rlen == -1,表示暂时没有udp数据可读取 */
-		wait_sleep(&usk->sk.recv_wait);
+		wait_sleep(&sk->recv_wait);
 	}
 	return rlen;
 }
+
+
+static int
+udp_port_used(uint16_t pt)
+{
+	struct sock *sk;
+	struct list_head* item;
+	list_for_each(item, &udp_socks) {
+		sk = list_entry(item, struct sock, link);
+		if (sk->sport == pt) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int
+udp_set_sport(struct sock *sk, uint16_t sport)
+{
+	int rc = -1;
+	if (!sport || udp_port_used(sport)) {
+		goto out;
+	}
+	sk->sport = sport;
+out:
+	return rc;
+}
+

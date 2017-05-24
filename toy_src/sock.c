@@ -11,19 +11,24 @@ sk_alloc(struct net_ops *ops, int protocol)
 	return sk;
 }
 
-/* sock_init_data用于初始化sk,并且将sk记录到sock中 */
 void
-sock_init_data(struct socket *sock, struct sock *sk)
+sock_init(struct sock *sk)
 {
-	sock->sk = sk;
-	sk->sock = sock;
-
+	sk->sock = NULL;
 	wait_init(&sk->recv_wait);
 	skb_queue_init(&sk->receive_queue);		/* 初始化接收队列 */
 	skb_queue_init(&sk->write_queue);		/* 初始化发送队列 */
 	pthread_mutex_init(&sk->lock, NULL);	/* 初始化锁 */
-
 	sk->ops->init(sk);						/* net_ops做初始化工作 */
+}
+
+/* sock_init_with_socket用于初始化sk,并且将sk记录到sock中 */
+void
+sock_init_with_socket(struct socket *sock, struct sock *sk)
+{
+	sock_init(sk);
+	sock->sk = sk;
+	sk->sock = sock;
 }
 
 void 

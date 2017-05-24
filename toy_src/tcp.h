@@ -236,7 +236,7 @@ void tcp_send_delack(uint32_t ts, void *arg);
 int tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb);
 void tcp_enter_time_wait(struct sock *sk);
 int tcp_udp_checksum(uint32_t saddr, uint32_t daddr, uint8_t proto, uint8_t *data, uint16_t len);
-int tcp_v4_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
+int tcp_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
 void tcp_select_initial_window(uint32_t *rcv_wnd);
 
 int tcp_generate_isn();
@@ -246,7 +246,6 @@ struct sock *tcp_alloc_sock();
 /*tcp_output.c*/
 int tcp_receive(struct tcp_sock *tsk, void *buf, int len);
 void tcp_reset_retransmission_timer(struct tcp_sock *tsk);
-int tcp_send_challenge_ack(struct sock *sk, struct sk_buff *skb);
 int tcp_send_ack(struct sock *sk);
 int tcp_send_fin(struct sock *sk);
 int tcp_send(struct tcp_sock *tsk, const void *buf, int len);

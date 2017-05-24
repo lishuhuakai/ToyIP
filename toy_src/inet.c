@@ -5,6 +5,7 @@
 #include "tcp.h"
 #include "wait.h"
 #include "netdev.h"
+#include "udp.h"
 
 //
 // inet 更多指的是tcp socket.
@@ -28,6 +29,8 @@ static struct sock_ops sock_ops = {
 	.close = &inet_close,
 	.free = &inet_free,
 	.accept = &inet_accept,
+	.sendto = &inet_sendto,
+	.recvfrom = &inet_recvfrom,
 };
 
 static struct sock_type inet_ops[] = {
@@ -41,7 +44,9 @@ static struct sock_type inet_ops[] = {
 	}
 };
 
-/* inet_create主要用于给struct socket *sock构建和初始化struct sock *sk. */
+/**\
+ * inet_create主要用于给struct socket *sock构建和初始化struct sock *sk. 
+\**/
 int
 inet_create(struct socket *sock, int protocol) 
 {
@@ -67,7 +72,7 @@ inet_create(struct socket *sock, int protocol)
 	
 	sk->protocol = protocol;
 
-	sock_init_data(sock, sk);	/* 对sock的其他域做一些初始化工作. */
+	sock_init_with_socket(sock, sk);	/* 对sock的其他域做一些初始化工作. */
 	return 0;
 }
 
@@ -182,7 +187,9 @@ inet_listen(struct socket *sock, int backlog)
 	return err;
 }
 
-/* inet_accept函数用于监听对端发送过来的连接 */
+/**\
+ * inet_accept函数用于监听对端发送过来的连接.
+\**/
 int
 inet_accept(struct socket *sock, struct socket *newsock, 
 	struct sockaddr_in* skaddr)
@@ -201,9 +208,25 @@ inet_accept(struct socket *sock, struct socket *newsock,
 			skaddr->sin_addr.s_addr = htonl(newsk->daddr);
 			skaddr->sin_port = htons(newsk->dport);
 		}
-		sock_init_data(newsock, newsk);	/* 对struct sock部分做初始化工作 */
+		sock_init_with_socket(newsock, newsk);	/* 对struct sock部分做初始化工作 */
 		err = 0;
 	}
 out:
 	return err;
+}
+
+int
+inet_sendto(struct socket *sock, const void *buf, size_t len, const struct sockaddr_in *saddr)
+{
+	struct sock *sk = sock->sk;
+
+	return sk->ops->sendto(sk, buf, len, saddr);
+}
+
+int
+inet_recvfrom(struct socket *sock, void *buf, size_t len, struct sockaddr_in *saddr)
+{
+	struct sock *sk = sock->sk;
+
+	return sk->ops->recvfrom(sk, buf, len, saddr);
 }

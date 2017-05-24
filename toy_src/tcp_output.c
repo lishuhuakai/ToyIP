@@ -94,7 +94,7 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 	   +--------------------+-------------------+-----+-----+----------+
 	   
 	 */
-	thdr->csum = tcp_v4_checksum(skb, htonl(sk->saddr), htonl(sk->daddr));
+	thdr->csum = tcp_checksum(skb, htonl(sk->saddr), htonl(sk->daddr));
 
 	return ip_output(sk, skb);
 }

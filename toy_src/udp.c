@@ -38,15 +38,25 @@ udp_in(struct sk_buff *skb)
 {
 	struct iphdr *iphd = ip_hdr(skb);	/* ip头部 */
 	struct udphdr *udphd = udp_hdr(skb);
+	struct sock *sk;
 	int udplen = 0;
 
 	if (udplen < UDP_HDR_LEN || udplen < udphd->len) {
 		udpdbg("udp length is too small");
-		goto drop_pkg;
+		goto drop;
 	}
 	udp_init_segment(udphd, iphd, skb);
-	//udp_process(skb, iphd, udphd);
-drop_pkg:
+	// todo: 检查校验值
+	sk = udp_lookup_sock(udphd->dport);
+
+	if (!sk) {
+		// tofix: 发送icmp不可达回应.
+		goto drop;
+	}
+	/* 直接将数据加入到接收队列的尾部即可. */
+	skb_queue_tail(&sk->receive_queue, skb);
+	sk->ops->recv_notify(sk);
+drop:
 	free_skb(skb);
 }
 

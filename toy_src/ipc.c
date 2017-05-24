@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "ipc.h"
 #include "socket.h"
+#include "udp.h"
 
 #define IPC_BUFLEN 4096
 
@@ -47,7 +48,9 @@ ipc_free_thread(int sock)
 	pthread_mutex_unlock(&lock);
 }
 
-/* ipc_write_rc 用于对付那些没有数据要返回的函数 */
+/**\
+ * ipc_write_rc 用于对付那些没有数据要返回的函数.
+\**/
 static int 
 ipc_write_rc(int sockfd, pid_t pid, uint16_t type, int rc)
 {
@@ -90,7 +93,9 @@ ipc_write_rc(int sockfd, pid_t pid, uint16_t type, int rc)
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
-/* ipc_read函数用于读取数据 */
+/**\
+ * ipc_read函数用于读取数据.
+\**/
 static int
 ipc_read(int sockfd, struct ipc_msg *msg)
 {
@@ -127,6 +132,70 @@ ipc_read(int sockfd, struct ipc_msg *msg)
 
 	return 0;
 }
+
+static int
+ipc_sendto(int sockfd, struct ipc_msg *msg)
+{
+	struct ipc_sendto *payload = (struct ipc_sendto *)msg->data;
+	pid_t pid = msg->pid;
+	int rc = -1;
+	int dlen = payload->len - IPC_BUFLEN;
+	char buf[payload->len];
+	
+	memset(buf, 0, payload->len);
+	memcpy(buf, payload->buf, payload->len > IPC_BUFLEN ? IPC_BUFLEN : payload->len);
+
+	if (payload->len > IPC_BUFLEN) {
+		int res = read(sockfd, buf + IPC_BUFLEN, payload->len - IPC_BUFLEN);
+		if (res == -1) {
+			perror("Read on IPC payload guard");
+			return -1;
+		}
+		else if (res != dlen) {
+			print_err("Hmm, we did not read exact payload amount in IPC write\n");
+		}
+	}
+	rc = _sendto(pid, payload->sockfd, buf, payload->len, &payload->addr);
+	return ipc_write_rc(sockfd, pid, IPC_WRITE, rc);
+}
+
+static int
+ipc_recvfrom(int sockfd, struct ipc_msg *msg)
+{
+	struct ipc_recvfrom *requested = (struct ipc_recvfrom *)msg->data;
+	pid_t pid = msg->pid;
+	int rlen = -1;
+	char rbuf[requested->len];
+	memset(rbuf, 0, requested->len);
+	/* pid和sockfd可以唯一确定一个socket */
+	rlen = _recvfrom(pid, requested->sockfd, rbuf, requested->len, &requested->addr);
+	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_recvfrom) + rlen;
+	struct ipc_msg *response = alloca(resplen);
+	struct ipc_err *error = (struct ipc_err *)response->data;
+	struct ipc_recvfrom *actual = (struct ipc_recvfrom *)error->data;
+
+	if (response == NULL) {
+		print_err("Could not allocate memory for IPC read response\n");
+		return -1;
+	}
+
+	response->type = IPC_RECVFROM;
+	response->pid = pid;
+
+	error->rc = rlen < 0 ? -1 : rlen;
+	error->err = rlen < 0 ? -rlen : 0;
+
+	actual->sockfd = requested->sockfd;
+	actual->len = rlen;
+	memcpy(actual->buf, rbuf, rlen > 0 ? rlen : 0);
+
+	if (write(sockfd, (char *)response, resplen) == -1) {
+		perror("Error on writing IPC recvfrom response");
+	}
+
+	return 0;
+}
+
 
 static int
 ipc_write(int sockfd, struct ipc_msg *msg)
@@ -173,7 +242,9 @@ ipc_listen(int sockfd, struct ipc_msg *msg)
 	return ipc_write_rc(sockfd, pid, IPC_LISTEN, rc); /* 所谓的IPC,只是自己定义的一套规则吗? */
 }
 
-/* ipc_bind调用下层的bind函数,模拟bind函数的功能. */
+/**\
+ * ipc_bind调用下层的bind函数,模拟bind函数的功能. 
+\**/
 static int
 ipc_bind(int sockfd, struct ipc_msg *msg)
 {
@@ -245,7 +316,9 @@ ipc_close(int sockfd, struct ipc_msg *msg)
 }
 
 
-/* demux_ipc_socket_call 更多的是实现消息的分发 */
+/**\
+ * demux_ipc_socket_call 更多的是实现消息的分发.
+\**/
 static int
 demux_ipc_socket_call(int sockfd, char *cmdbuf, int blen)
 {
@@ -268,6 +341,10 @@ demux_ipc_socket_call(int sockfd, char *cmdbuf, int blen)
 		return ipc_close(sockfd, msg);
 	case IPC_LISTEN:
 		return ipc_listen(sockfd, msg);
+	case IPC_SENDTO:
+		return ipc_sendto(sockfd, msg);
+	case IPC_RECVFROM:
+		return ipc_recvfrom(sockfd, msg);
 	default:
 		print_err("No such IPC type %d\n", msg->type);
 		break;
@@ -299,7 +376,9 @@ socket_ipc_open(void *args) {
 	return NULL;
 }
 
-/* start_ipc_listener用于监听来自别的应用发送来的函数调用 */
+/**\
+ * start_ipc_listener用于监听来自别的应用发送来的函数调用.
+\**/
 void *
 start_ipc_listener()
 {
@@ -357,5 +436,3 @@ start_ipc_listener()
 	unlink(sockname);
 	return NULL;
 }
-
-

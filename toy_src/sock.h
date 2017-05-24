@@ -14,9 +14,9 @@ struct net_ops {
 	int(*init)(struct sock *sk);
 	int(*connect)(struct sock *sk, const struct sockaddr_in *addr);
 	int(*send_buf)(struct sock *sk, const void *buf, int len);  
-	int(*send_pkg)(struct sock *sk,struct sk_buff *skb);  /* for udp sendto function */
+	int(*sendto)(struct sock *sk, const void *buf, int len,const struct sockaddr_in* saddr);
 	int(*recv_buf)(struct sock *sk, void *buf, int len);
-	int(*recv_pkg)(struct sock *sk, void *buf, int len);  /* for udp recvfrom function */
+	int(*recvfrom)(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr); 
 	int(*bind)(struct sock *, struct sockaddr_in *);
 	int(*recv_notify)(struct sock *sk);
 	int(*close)(struct sock *sk);			
@@ -51,6 +51,7 @@ write_queue_head(struct sock *sk) {
 
 struct sock *sk_alloc(struct net_ops *ops, int protocol);
 void sock_free(struct sock *sk);
-void sock_init_data(struct socket *sock, struct sock *sk);
+void sock_init(struct sock *sk);
+void sock_init_with_socket(struct socket *sock, struct sock *sk);
 
 #endif // !SOCK_H

@@ -45,6 +45,5 @@ ip_output(struct sock *sk, struct sk_buff *skb)
 	ihdr->csum = htons(ihdr->csum);
 	ihdr->csum = checksum(ihdr, ihdr->ihl * 4, 0);
 
-
 	return dst_neigh_output(skb);
 }

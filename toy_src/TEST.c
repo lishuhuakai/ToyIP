@@ -55,7 +55,7 @@ TEST_TCP_CHECKSUM()
 	thdr->csum = 0;
 
 	// 接下来计算检验和
-	thdr->csum = tcp_v4_checksum(skb, ip_pton("10.0.1.4"), ip_pton("10.0.1.5"));
+	thdr->csum = tcp_checksum(skb, ip_pton("10.0.1.4"), ip_pton("10.0.1.5"));
 	printf("checksum = 0x%llX\n", thdr->csum);
 	// 下面开始第二轮检验
 	thdr->csum = 0;

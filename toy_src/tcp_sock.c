@@ -296,8 +296,8 @@ tcp_accept(struct sock* sk)
 
 	newtsk = tcp_accept_dequeue(tsk);
 
-	/* 连接建立成功, 这里不用再次加入,因为唤醒的时候newsk已经在队列中了. */
 
+	/* 连接建立成功, 这里不用再次加入,因为唤醒的时候newsk已经在队列中了. */
 out:
 	return newtsk ? &newtsk->sk : NULL;
 }

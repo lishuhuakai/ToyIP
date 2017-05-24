@@ -16,7 +16,9 @@ const char *tcp_dbg_states[] = {
 #endif
 
 
-/* tcp_init_segment 将网络字节序的各项全部转化为主机字节序 */
+/**\
+ * tcp_init_segment 将网络字节序的各项全部转化为主机字节序.
+\**/
 static void
 tcp_init_segment(struct tcphdr *th, struct iphdr *ih, struct sk_buff *skb) 
 {
@@ -74,23 +76,25 @@ tcp_in(struct sk_buff *skb)
 
 
 int
-tcp_v4_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr)
+tcp_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr)
 {
 	return tcp_udp_checksum(saddr, daddr, IP_TCP, skb->data, skb->len);
 }
 
 
 void 
-_tcp_set_state(struct sock *sk, uint32_t state)
+__tcp_set_state(struct sock *sk, uint32_t state)
 {
 	sk->state = state;
 }
 
-/* generate_port 随机产生接口 */
+/**\
+ * generate_port 随机产生接口.
+\**/
 uint16_t 
 tcp_generate_port()
 {
-	/* todo: 更好的办法来设置port */
+	// todo: 更好的办法来设置port
 	static int port = 40000;
 	return ++port + (timer_get_tick() % 10000);
 }
@@ -98,7 +102,7 @@ tcp_generate_port()
 int
 tcp_generate_isn()
 {
-	/* todo: 更好的方法来产生isn */
+	// todo: 更好的方法来产生isn
 	return (int)time(NULL) *rand();
 }
 

@@ -17,14 +17,16 @@
 #endif
 
 
-#define IPC_SOCKET  0x0001
-#define IPC_CONNECT 0x0002
-#define IPC_WRITE   0x0003
-#define IPC_READ    0x0004
-#define IPC_CLOSE   0x0005
-#define IPC_BIND	0x0006
-#define IPC_ACCEPT  0x0007
-#define IPC_LISTEN  0x0008
+#define IPC_SOCKET	 0x0001
+#define IPC_CONNECT  0x0002
+#define IPC_WRITE    0x0003
+#define IPC_READ     0x0004
+#define IPC_CLOSE    0x0005
+#define IPC_BIND	 0x0006
+#define IPC_ACCEPT   0x0007
+#define IPC_LISTEN   0x0008
+#define IPC_SENDTO   0x0009
+#define IPC_RECVFROM 0x000a
 
 struct ipc_thread {
     struct list_head list;
@@ -72,6 +74,20 @@ struct ipc_write {
     int sockfd;
     size_t len;
     uint8_t buf[];
+} __attribute__((packed));
+
+struct ipc_sendto {
+	int sockfd;
+	size_t len;
+	struct sockaddr_in addr;
+	uint8_t buf[];
+} __attribute__((packed));
+
+struct ipc_recvfrom {
+	int sockfd;
+	size_t len;
+	struct sockaddr_in addr;
+	uint8_t buf[];
 } __attribute__((packed));
 
 struct ipc_listen {

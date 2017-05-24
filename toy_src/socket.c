@@ -3,6 +3,7 @@
 #include "socket.h"
 #include "inet.h"
 #include "wait.h"
+#include "udp.h"
 
 static LIST_HEAD(sockets);
 static pthread_rwlock_t slock = PTHREAD_RWLOCK_INITIALIZER;
@@ -92,15 +93,18 @@ get_socket(pid_t pid, int fd)
 
 
 
-/* 
- 以下的一系列函数和我们经常使用的函数非常类似,确实,这里确实是在试图还原一系列的网络系统调用.
- 下面的函数一般都是调用sock->ops->xxx,ops指的是操纵socket的一系列函数.这里的xxx,
- 函数接口和我们经常使用的基本上是一致的. 
- 
- 这里可以保证,传入的参数全部是有效的.所以可以删除掉错误检查的代码.
- */
+/**\ 
+ * 以下的一系列函数和我们经常使用的函数非常类似,确实,这里确实是在试图还原一系列的网络系统调用.
+ * 下面的函数一般都是调用sock->ops->xxx,ops指的是操纵socket的一系列函数.这里的xxx,
+ * 函数接口和我们经常使用的基本上是一致的. 
+ *
+ * 这里可以保证,传入的参数全部是有效的.所以可以删除掉错误检查的代码.
+\**/
 
-/* _socket函数构建一个socket,并且将其加入到connections这个链表之中 */
+
+/**\
+ * _socket函数构建一个socket,并且将其加入到connections这个链表之中.
+\**/
 int
 _socket(pid_t pid, int domain, int type, int protocol)
 {
@@ -160,7 +164,9 @@ _connect(pid_t pid, int sockfd, const struct sockaddr_in *addr)
 	return sock->ops->connect(sock, addr);
 }
 
-/* write 向pid进程连接的第sockfd号文件写入数据 */
+/**\
+ * write 向pid进程连接的第sockfd号文件写入数据.
+\**/
 int 
 _write(pid_t pid, int sockfd, const void *buf, const unsigned int count)
 {
@@ -183,6 +189,31 @@ _read(pid_t pid, int sockfd, void* buf, const unsigned int count)
 		return -1;
 	}
 	return sock->ops->read(sock, buf, count);
+}
+
+int
+_recvfrom(pid_t pid, int sockfd, void *buf, int count, struct sockaddr_in *saddr)
+{
+	struct socket *sock;
+	if ((sock = get_socket(pid, sockfd)) == NULL) {
+		print_err("Recvfrom: could not find socket (fd %d && pid %d)\n",
+			sockfd, pid);
+		return -1;
+	}
+	return sock->ops->recvfrom(sock, buf, count, saddr);
+}
+
+int
+_sendto(pid_t pid, int sockfd, const void *buf, int len, const struct sockaddr_in *saddr)
+{
+	struct socket *sock;
+	if ((sock = get_socket(pid, sockfd)) == NULL) {
+		print_err("Sendto: could not find socket (fd %d && pid %d)\n",
+			sockfd, pid);
+		return -1;
+	}
+	// tofix
+	return sock->ops->sendto(sock, buf, len, saddr);
 }
 
 int

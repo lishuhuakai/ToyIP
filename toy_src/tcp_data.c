@@ -2,7 +2,9 @@
 #include "tcp.h"
 #include "list.h"
 
-/* tcp_data_insert_ordered 按照序列号的顺序来 */
+/**\
+ * tcp_data_insert_ordered 按照序列号的顺序来.
+\**/
 static void
 tcp_data_insert_ordered(struct sk_buff_head *queue, struct sk_buff *skb)
 {
@@ -45,7 +47,9 @@ tcp_consume_ofo_queue(struct tcp_sock *tsk)
 	}
 }
 
-/* tcp_data_dequeue 输入队列中的数据出队列 */
+/**\
+ * tcp_data_dequeue 输入队列中的数据出队列.
+\**/
 int
 tcp_data_dequeue(struct tcp_sock *tsk, void *user_buf, int userlen)
 {
@@ -83,7 +87,9 @@ tcp_data_dequeue(struct tcp_sock *tsk, void *user_buf, int userlen)
 	return rlen;
 }
 
-/* tcp_data_queue 输入队列中的数据入队列 */
+/**\
+ * tcp_data_queue 输入队列中的数据入队列. 
+\**/
 int
 tcp_data_queue(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb)
 {

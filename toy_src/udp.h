@@ -28,6 +28,8 @@ struct udp_sock {
 	struct sock sk;
 };
 
+#define udp_sk(sk) ((struct udp_sock*)sk)
+
 #define UDP_HDR_LEN sizeof(struct udphdr)
 #define UDP_DEFAULT_TTL 64
 #define UDP_MAX_BUFSZ (0xffff - UDP_HDR_LEN)
@@ -39,20 +41,23 @@ udp_hdr(const struct sk_buff *skb)
 }
 
 /* 和TCP相比,UDP要简单很多,因为它没有状态 */
-struct sock *udp_lookup_sock(uint16_t port);
 void udp_in(struct sk_buff *skb);
 void udp_init(void);
 struct sock * udp_alloc_sock();
+struct sk_buff* udp_alloc_skb(int size);
 int udp_sock_init(struct sock *sk);
 int udp_write(struct sock *sk, const void *buf, int len);
 int udp_read(struct sock *sk, void *buf, int len);
-int udp_send(struct sock *usk, const void *buf, int len);
+int udp_send(struct sock *sk, const void *buf, int len);
 int udp_connect(struct sock *sk, const struct sockaddr_in *addr);
+int udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in *skaddr);
+int udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
 int udp_close(struct sock *sk);
-int udp_receive(struct udp_sock *usk, void *buf, int len);
 int udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen);
 uint16_t udp_generate_port();
 
+struct sock * udp_lookup_sock(uint16_t dport);
 int udp_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr);
+
 
 #endif // !UDP_H

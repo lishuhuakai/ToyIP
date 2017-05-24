@@ -5,6 +5,7 @@
 #include "ipc.h"
 #include "timer.h"
 #include "tcp.h"
+#include "udp.h"
 #include "TEST.h"
 
 int debug = 1;

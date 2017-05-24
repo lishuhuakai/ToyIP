@@ -30,7 +30,7 @@ static inline int
 wait_sleep(struct wait_lock *w) {
 	pthread_mutex_lock(&w->lock);
 	w->sleeping = 1;
-	while (w->sleeping == 1) {
+	while (w->sleeping == 1) { /* ·ÀÖ¹spurious wakeup */
 		pthread_cond_wait(&w->ready, &w->lock);
 	}
 	pthread_mutex_unlock(&w->lock);
