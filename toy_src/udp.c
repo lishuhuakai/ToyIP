@@ -29,8 +29,7 @@ udp_init_segment(struct udphdr *udphd, struct iphdr *iphd, struct sk_buff *skb)
 	udphd->csum = htons(udphd->csum);
 	skb->payload = udphd->data;
 
-	skb->dlen = ip_len(iphd) - udphd->len;
-
+	skb->dlen = udphd->len - UDP_HDR_LEN;
 }
 
 void
@@ -39,12 +38,7 @@ udp_in(struct sk_buff *skb)
 	struct iphdr *iphd = ip_hdr(skb);	/* ip头部 */
 	struct udphdr *udphd = udp_hdr(skb);
 	struct sock *sk;
-	int udplen = 0;
 
-	if (udplen < UDP_HDR_LEN || udplen < udphd->len) {
-		udpdbg("udp length is too small");
-		goto drop;
-	}
 	udp_init_segment(udphd, iphd, skb);
 	// todo: 检查校验值
 	sk = udp_lookup_sock(udphd->dport);
@@ -56,11 +50,10 @@ udp_in(struct sk_buff *skb)
 	/* 直接将数据加入到接收队列的尾部即可. */
 	skb_queue_tail(&sk->receive_queue, skb);
 	sk->ops->recv_notify(sk);
+	return;
 drop:
 	free_skb(skb);
 }
-
-
 
 
 

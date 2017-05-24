@@ -65,6 +65,14 @@ struct ipc_accept {
 	struct sockaddr_in addr;
 } __attribute__((packed));
 
+struct ipc_recvfrom {
+	int sockfd;
+	size_t len;
+	int contain_addr;	/* 是否包含了地址信息 */
+	struct sockaddr_in addr;
+	uint8_t buf[];
+} __attribute__((packed));
+
 struct ipc_bind {
 	int sockfd;
 	struct sockaddr_in addr;
@@ -83,12 +91,6 @@ struct ipc_sendto {
 	uint8_t buf[];
 } __attribute__((packed));
 
-struct ipc_recvfrom {
-	int sockfd;
-	size_t len;
-	struct sockaddr_in addr;
-	uint8_t buf[];
-} __attribute__((packed));
 
 struct ipc_listen {
 	int sockfd;

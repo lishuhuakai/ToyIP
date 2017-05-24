@@ -65,9 +65,9 @@ ip_rcv(struct sk_buff *skb)
     case IP_TCP:
         tcp_in(skb);
         return 0;
-	//case IP_UDP:
-		//udp_in(skb);
-		//return 0;
+	case IP_UDP:
+		udp_in(skb);
+		return 0;
     default:
         print_err("Unknown IP header proto\n");
         goto drop_pkt;

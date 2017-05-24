@@ -16,7 +16,7 @@ struct net_ops {
 	int(*send_buf)(struct sock *sk, const void *buf, int len);  
 	int(*sendto)(struct sock *sk, const void *buf, int len,const struct sockaddr_in* saddr);
 	int(*recv_buf)(struct sock *sk, void *buf, int len);
-	int(*recvfrom)(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr); 
+	int(*recvfrom)(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
 	int(*bind)(struct sock *, struct sockaddr_in *);
 	int(*recv_notify)(struct sock *sk);
 	int(*close)(struct sock *sk);			

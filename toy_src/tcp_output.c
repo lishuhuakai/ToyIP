@@ -15,7 +15,6 @@ tcp_alloc_skb(int optlen, int size)
 	 optlen表示tcp首部选项的大小
 	 这里要特别注意一下,因为忘记了TCP_HDR_LEN导致出错
 	 */
-	 //===============================================
 	int reserved = ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN + optlen + size; /* ==> 这里的一个错误弄得我好苦! */
 	struct sk_buff *skb = alloc_skb(reserved);
 

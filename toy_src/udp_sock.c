@@ -8,22 +8,44 @@ static int udp_sock_amount = 0;
 static LIST_HEAD(udp_socks);
 static pthread_rwlock_t slock = PTHREAD_RWLOCK_INITIALIZER;
 
+void
+udp_socks_enqueue(struct sock *sk)
+{
+	pthread_rwlock_wrlock(&slock);
+	list_add_tail(&sk->link, &udp_socks);
+	udp_sock_amount++;
+	pthread_rwlock_unlock(&slock);
+}
+
+static void
+udp_socks_remove(struct sock *sk)
+{
+	pthread_rwlock_wrlock(&slock);
+	udp_sock_amount--;
+	list_del(&sk->link);
+	pthread_rwlock_unlock(&slock);
+}
+
 struct sock *
 	udp_lookup_sock(uint16_t dport)
 {
 	struct sock *sk;
 	struct list_head *item;
+
+	pthread_rwlock_rdlock(&slock);
 	list_for_each(item, &udp_socks) {
 		sk = list_entry(item, struct sock, link);
-		if (sk->dport == dport)
+		if ((sk->dport == dport) || (sk->dport == 0))
 			return sk;
 	}
+	pthread_rwlock_unlock(&slock);
 	return NULL;
 }
 
 
 int udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
 static int udp_set_sport(struct sock *sk, uint16_t sport);
+static int udp_recv_notify(struct sock *sk);
 
 struct net_ops udp_ops = {
 	.alloc_sock = &udp_alloc_sock,
@@ -35,6 +57,7 @@ struct net_ops udp_ops = {
 	.recv_buf = &udp_read,
 	.close = &udp_close,
 	.set_sport = &udp_set_sport,
+	.recv_notify = &udp_recv_notify,
 };
 
 /**\
@@ -44,6 +67,16 @@ void
 udp_init()
 {
 	
+
+}
+
+static int
+udp_recv_notify(struct sock *sk)
+{
+	if (&(sk->recv_wait)) {
+		return wait_wakeup(&sk->recv_wait); /* 唤醒等待的进程 */
+	}
+	return -1;
 }
 
 
@@ -68,9 +101,19 @@ int
 udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr)
 {
 	int rc = -1;
-	sock_init(sk);
-	list_add_tail(&sk->link, &udp_socks);
+	if (saddr) {
+		sk->dport = ntohs(saddr->sin_port);
+		sk->daddr = ntohl(saddr->sin_addr.s_addr);
+	}
+	else {
+		/* 如果为空的话,需要改搜索函数 */
+		sk->dport = 0;
+	}
+	/* 将sock挂到链上去. */
+	udp_socks_enqueue(sk);
 	rc = udp_read(sk, buf, len);
+	/* 完事之后记得将sock取下 */
+	udp_socks_remove(sk);
 	return rc;
 }
 
@@ -111,7 +154,6 @@ udp_alloc_skb(int size)
 	skb_reserve(skb, reserved);
 	skb->protocol = IP_UDP; 	/* udp协议 */
 	skb->dlen = size;
-
 	return skb;
 }
 
@@ -120,14 +162,15 @@ int
 udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in *skaddr)
 {
 	extern char *stackaddr;
-	
+	int rc = -1;
 	struct sock *fake_sk = udp_alloc_sock();
 	fake_sk->daddr = ntohl(skaddr->sin_addr.s_addr);
 	fake_sk->dport = ntohs(skaddr->sin_port);
 	fake_sk->sport = udp_generate_port();
 	fake_sk->saddr = ip_parse(stackaddr);
-	
-	udp_send(fake_sk, buf, size);
+	rc = udp_send(fake_sk, buf, size);
+	udp_free_sock(fake_sk);
+	return rc;
 }
 
 int

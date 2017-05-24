@@ -156,7 +156,7 @@ ipc_sendto(int sockfd, struct ipc_msg *msg)
 		}
 	}
 	rc = _sendto(pid, payload->sockfd, buf, payload->len, &payload->addr);
-	return ipc_write_rc(sockfd, pid, IPC_WRITE, rc);
+	return ipc_write_rc(sockfd, pid, IPC_SENDTO, rc);
 }
 
 static int
@@ -166,9 +166,13 @@ ipc_recvfrom(int sockfd, struct ipc_msg *msg)
 	pid_t pid = msg->pid;
 	int rlen = -1;
 	char rbuf[requested->len];
+	struct sockaddr_in *saddr;
 	memset(rbuf, 0, requested->len);
+
+	saddr = requested->contain_addr ? &requested->addr: NULL;
+
 	/* pid和sockfd可以唯一确定一个socket */
-	rlen = _recvfrom(pid, requested->sockfd, rbuf, requested->len, &requested->addr);
+	rlen = _recvfrom(pid, requested->sockfd, rbuf, requested->len, saddr);
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_recvfrom) + rlen;
 	struct ipc_msg *response = alloca(resplen);
 	struct ipc_err *error = (struct ipc_err *)response->data;
