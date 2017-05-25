@@ -19,11 +19,23 @@ ip_init_pkt(struct iphdr *ih)
 	ih->id = ntohs(ih->id);			/* 唯一的标识 */
 }
 
+
+/**\
+ * ip_pkt_for_us 判断数据包是否是传递给我们的.
+\**/
+static int
+ip_pkt_for_us(struct iphdr *ih)
+{
+	extern char * stackaddr;
+	return ih->daddr == ip_parse(stackaddr) ? 1 : 0;
+}
+
 int
 ip_rcv(struct sk_buff *skb)
 {
 	struct iphdr *ih = ip_hdr(skb);
 	uint16_t csum = -1;
+
 
 	if (ih->version != IPV4) { // 0x0800 IPv4
 		print_err("Datagram version was not IPv4\n");
@@ -41,7 +53,7 @@ ip_rcv(struct sk_buff *skb)
 		goto drop_pkt;
 	}
 
-    csum = checksum(ih, ih->ihl * 4, 0);	// 计算检验和
+	csum = checksum(ih, ih->ihl * 4, 0);
 
 	if (csum != 0) {
 		/* 无效的数据报 */
@@ -58,6 +70,7 @@ ip_rcv(struct sk_buff *skb)
 	ip_init_pkt(ih);
 	ip_dbg("in", ih);
 
+	if (!ip_pkt_for_us(ih)) goto drop_pkt;
     switch (ih->proto) {
     case ICMPV4:
         icmpv4_incoming(skb);

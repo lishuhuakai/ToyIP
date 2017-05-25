@@ -35,8 +35,10 @@ struct sock *
 	pthread_rwlock_rdlock(&slock);
 	list_for_each(item, &udp_socks) {
 		sk = list_entry(item, struct sock, link);
-		if ((sk->dport == dport) || (sk->dport == 0))
+		if ((sk->dport == dport) || (sk->dport == 0)) {
+			pthread_rwlock_unlock(&slock);
 			return sk;
+		}
 	}
 	pthread_rwlock_unlock(&slock);
 	return NULL;
@@ -70,7 +72,7 @@ udp_init()
 
 }
 
-static int
+static inline int
 udp_recv_notify(struct sock *sk)
 {
 	if (&(sk->recv_wait)) {
@@ -163,13 +165,18 @@ udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in 
 {
 	extern char *stackaddr;
 	int rc = -1;
-	struct sock *fake_sk = udp_alloc_sock();
-	fake_sk->daddr = ntohl(skaddr->sin_addr.s_addr);
-	fake_sk->dport = ntohs(skaddr->sin_port);
-	fake_sk->sport = udp_generate_port();
-	fake_sk->saddr = ip_parse(stackaddr);
-	rc = udp_send(fake_sk, buf, size);
-	udp_free_sock(fake_sk);
+	sk->daddr = ntohl(skaddr->sin_addr.s_addr);
+	sk->dport = ntohs(skaddr->sin_port);
+	sk->sport = udp_generate_port();
+	sk->saddr = ip_parse(stackaddr);
+	//udp_socks_enqueue(sk);
+	rc = udp_send(sk, buf, size);
+	//struct sock *fake_sk = udp_alloc_sock();
+	//fake_sk->daddr = ntohl(skaddr->sin_addr.s_addr);
+	//fake_sk->dport = ntohs(skaddr->sin_port);
+	//fake_sk->sport = udp_generate_port();
+	//fake_sk->saddr = ip_parse(stackaddr);
+	//udp_free_sock(fake_sk);
 	return rc;
 }
 

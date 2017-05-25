@@ -41,6 +41,9 @@ udp_in(struct sk_buff *skb)
 
 	udp_init_segment(udphd, iphd, skb);
 	// todo: 检查校验值
+
+	// tofix: 为了后面的recvfrom能够接收到数据,所以这里睡眠了一下.
+	usleep(1000);
 	sk = udp_lookup_sock(udphd->dport);
 
 	if (!sk) {
