@@ -42,10 +42,7 @@ int lvl_listen(int sockfd, int backlog);
 int lvl_accept(int sockfd, struct sockaddr_in *);
 ssize_t lvl_write(int sockfd, const void *buf, size_t len);
 ssize_t lvl_read(int sockfd, void *buf, size_t len);
-ssize_t lvl_send(int fd, const void *buf, size_t len, int flags);
-ssize_t lvl_sendto(int fd, const void *buf, size_t len, int flags,
-			const struct sockaddr *dest_addr, socklen_t dest_len);
-ssize_t lvl_recv(int fd, void *buf, size_t len, int flags);
-ssize_t lvl_recvfrom(int fd, void * buf, size_t len, int flags, struct sockaddr * address, socklen_t * addrlen);
+ssize_t lvl_sendto(int fd, const void *buf, size_t len, const struct sockaddr_in *dest_addr);
+ssize_t lvl_recvfrom(int fd, void * buf, size_t len, struct sockaddr_in * address);
 
 #endif

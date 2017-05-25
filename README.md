@@ -26,7 +26,7 @@
 1. [http://blog.csdn.net/lishuhuakai/article/details/70305543](http://blog.csdn.net/lishuhuakai/article/details/70305543)
 2. [http://blog.csdn.net/lishuhuakai/article/details/70498149](http://blog.csdn.net/lishuhuakai/article/details/70498149)
 
-代码正在施工之中.
+代码正在施工之中. ==> 代码大体完工,接下来要除虫了,还有需要写博客了.
 
 已经完工的协议有**arp**和**icmp**, **tcp**基本上已经可以使用,**udp**协议还没有测试.现在正在完善对外的接口.
 
