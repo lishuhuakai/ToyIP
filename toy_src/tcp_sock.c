@@ -5,35 +5,44 @@
 /* 为了尽可能简洁,所以实现非常简单. */
 
 
-LIST_HEAD(tcp_connecting_or_listening_socks);
-LIST_HEAD(tcp_establised_or_syn_recvd_socks);
+static LIST_HEAD(tcp_connecting_or_listening_socks);
+static LIST_HEAD(tcp_establised_or_syn_recvd_socks);
 
+static pthread_rwlock_t cl_lock = PTHREAD_RWLOCK_INITIALIZER;
+static pthread_rwlock_t es_lock = PTHREAD_RWLOCK_INITIALIZER;
 
-// tofix: 加锁
 
 void inline
 tcp_established_or_syn_recvd_socks_enqueue(struct sock *sk)
 {
+	pthread_rwlock_wrlock(&es_lock);
 	list_add_tail(&sk->link, &tcp_establised_or_syn_recvd_socks);
+	pthread_rwlock_unlock(&es_lock);
 }
 
 
 void inline
 tcp_established_or_syn_recvd_socks_remove(struct sock *sk)
 {
+	pthread_rwlock_wrlock(&es_lock);
 	list_del(&sk->link);
+	pthread_rwlock_unlock(&es_lock);
 }
 
 void inline
 tcp_connecting_or_listening_socks_enqueue(struct sock *sk)
 {
+	pthread_rwlock_wrlock(&cl_lock);
 	list_add_tail(&sk->link, &tcp_connecting_or_listening_socks);
+	pthread_rwlock_unlock(&cl_lock);
 }
 
 void inline
 tcp_connecting_or_listening_socks_remove(struct sock *sk)
 {
+	pthread_rwlock_wrlock(&cl_lock);
 	list_del(&sk->link);
+	pthread_rwlock_unlock(&cl_lock);
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -312,13 +321,16 @@ tcp_lookup_establised_or_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t d
 {
 	struct sock *sk;
 	struct list_head* item;
+	pthread_rwlock_rdlock(&es_lock);
 	list_for_each(item, &tcp_establised_or_syn_recvd_socks) {
 		sk = list_entry(item, struct sock, link);
 		if ((sk->saddr == src) && (sk->sport == sport) &&
 			(sk->daddr == dst) && (sk->dport == dport)) {
+			pthread_rwlock_unlock(&cl_lock);
 			return sk;
 		}
 	}
+	pthread_rwlock_unlock(&es_lock);
 	return NULL;
 }
 
@@ -331,11 +343,15 @@ static struct sock *
 {
 	struct sock *sk;
 	struct list_head *item;
+	pthread_rwlock_rdlock(&cl_lock);
 	list_for_each(item, &tcp_connecting_or_listening_socks) {
 		sk = list_entry(item, struct sock, link);
-		if ((sk->saddr == src) && (sk->sport == sport))
+		if ((sk->saddr == src) && (sk->sport == sport)) {
+			pthread_rwlock_unlock(&cl_lock);
 			return sk;
+		}
 	}
+	pthread_rwlock_unlock(&cl_lock);
 	return NULL;
 }
 
