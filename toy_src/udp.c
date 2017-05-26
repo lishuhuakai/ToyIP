@@ -42,8 +42,6 @@ udp_in(struct sk_buff *skb)
 	udp_init_segment(udphd, iphd, skb);
 	// todo: 检查校验值
 
-	// tofix: 为了后面的recvfrom能够接收到数据,所以这里睡眠了一下.
-	usleep(1000);
 	sk = udp_lookup_sock(udphd->dport);
 
 	if (!sk) {
@@ -64,10 +62,11 @@ drop:
  * udp_data_dequeue 取出一个数据报.
 \**/
 int
-udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen)
+udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen, struct sockaddr_in *saddr)
 {
 	struct sock *sk = &usk->sk;
 	struct udphdr *udphd;
+	struct iphdr *ih;
 	struct sk_buff *skb;
 	int rlen = -1;
 	/* udp可不是什么流式协议,而且,有一点需要注意,一旦userlen比实际的udp数据包长度要小,
@@ -77,10 +76,16 @@ udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen)
 	{
 		skb = skb_peek(&sk->receive_queue);
 		udphd = udp_hdr(skb);
+		ih = ip_hdr(skb);
 		rlen = skb->dlen > userlen? userlen : skb->dlen;
 		memcpy(user_buf, skb->payload, rlen);
 		/* 即使该数据报的数据没有读完,也要丢弃掉. */
 		skb_dequeue(&sk->receive_queue);
+		if (saddr) {
+			saddr->sin_family = AF_INET;
+			saddr->sin_port = htons(udphd->sport);
+			saddr->sin_addr.s_addr = htonl(ih->saddr);
+		}
 		skb->refcnt--;
 		free_skb(skb);
 	}
@@ -98,6 +103,8 @@ udp_data_enqueue(struct udp_sock *usk, struct udphdr *udphd, struct sk_buff *skb
 	skb_queue_tail(&sk->receive_queue, skb);
 	return 0;
 }
+
+
 
 
 

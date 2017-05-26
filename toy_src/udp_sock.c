@@ -8,7 +8,7 @@ static int udp_sock_amount = 0;
 static LIST_HEAD(udp_socks);
 static pthread_rwlock_t slock = PTHREAD_RWLOCK_INITIALIZER;
 
-void
+static void
 udp_socks_enqueue(struct sock *sk)
 {
 	pthread_rwlock_wrlock(&slock);
@@ -22,8 +22,14 @@ udp_socks_remove(struct sock *sk)
 {
 	pthread_rwlock_wrlock(&slock);
 	udp_sock_amount--;
-	list_del(&sk->link);
+	list_del_init(&sk->link);
 	pthread_rwlock_unlock(&slock);
+}
+
+static inline int
+udp_sk_in_socks(struct sock *sk)
+{
+	return sk->link.next == &sk->link;
 }
 
 struct sock *
@@ -35,7 +41,7 @@ struct sock *
 	pthread_rwlock_rdlock(&slock);
 	list_for_each(item, &udp_socks) {
 		sk = list_entry(item, struct sock, link);
-		if ((sk->dport == dport) || (sk->dport == 0)) {
+		if (sk->sport == dport) {
 			pthread_rwlock_unlock(&slock);
 			return sk;
 		}
@@ -45,9 +51,9 @@ struct sock *
 }
 
 
-int udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
 static int udp_set_sport(struct sock *sk, uint16_t sport);
 static int udp_recv_notify(struct sock *sk);
+static int udp_bind(struct sock *sk, struct sockaddr_in *saddr);
 
 struct net_ops udp_ops = {
 	.alloc_sock = &udp_alloc_sock,
@@ -58,6 +64,7 @@ struct net_ops udp_ops = {
 	.recvfrom = &udp_recvfrom,
 	.recv_buf = &udp_read,
 	.close = &udp_close,
+	.bind = &udp_bind,
 	.set_sport = &udp_set_sport,
 	.recv_notify = &udp_recv_notify,
 };
@@ -68,14 +75,13 @@ struct net_ops udp_ops = {
 void 
 udp_init()
 {
-	
 
 }
 
 static inline int
 udp_recv_notify(struct sock *sk)
 {
-	if (&(sk->recv_wait)) {
+	if (&sk->recv_wait) {
 		return wait_wakeup(&sk->recv_wait); /* 唤醒等待的进程 */
 	}
 	return -1;
@@ -85,6 +91,8 @@ udp_recv_notify(struct sock *sk)
 int
 udp_close(struct sock *sk)
 {
+	udp_socks_remove(sk);
+	udp_free_sock(sk);
 	return 0;
 }
 
@@ -102,21 +110,35 @@ udp_sock_init(struct sock *sk)
 int
 udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr)
 {
-	int rc = -1;
-	if (saddr) {
-		sk->dport = ntohs(saddr->sin_port);
-		sk->daddr = ntohl(saddr->sin_addr.s_addr);
+	int rlen;
+	struct udp_sock *usk = udp_sk(sk);
+
+	for (;;) {
+		rlen = udp_data_dequeue(usk, buf, len, saddr);
+		/* rlen != -1表示已经处理了一个udp数据报,可以返回了. */
+		if (rlen != -1) break;
+
+		/* 接下来rlen == -1,表示暂时没有udp数据可读取 */
+		wait_sleep(&sk->recv_wait);
 	}
-	else {
-		/* 如果为空的话,需要改搜索函数 */
-		sk->dport = 0;
+	return rlen;
+}
+
+
+static int
+udp_clean_up_receive_queue(struct sock *sk)
+{
+	struct sk_buff *skb;
+
+	pthread_mutex_lock(&sk->receive_queue.lock);
+	while ((skb = skb_peek(&sk->receive_queue)) != NULL) {
+		/* 释放掉已经接收到了确认的数据 */
+		skb_dequeue(&sk->receive_queue);
+		skb->refcnt--;
+		free_skb(skb);
 	}
-	/* 将sock挂到链上去. */
-	udp_socks_enqueue(sk);
-	rc = udp_read(sk, buf, len);
-	/* 完事之后记得将sock取下 */
-	udp_socks_remove(sk);
-	return rc;
+	pthread_mutex_unlock(&sk->receive_queue.lock);
+	return 0;
 }
 
 int
@@ -125,26 +147,35 @@ udp_connect(struct sock *sk, const struct sockaddr_in *addr)
 	/* udp没有三次握手的过程,在这里只需要做一些检查,
 	 如果没有错误,就记录对端的IP地址和端口号,立即返回. */
 	extern char * stackaddr;
+	int in_socks = 0;
 
 	// todo: 对ip地址做检查
 	uint16_t dport = addr->sin_port;
 	uint32_t daddr = addr->sin_addr.s_addr;
+	pthread_rwlock_wrlock(&slock);
+	if (sk->daddr != 0) {
+		udp_clean_up_receive_queue(sk);
+		in_socks = 1;
+	}
+
 	sk->dport = ntohs(dport);
 	sk->daddr = ntohl(daddr);
 	sk->saddr = parse_ipv4_string(stackaddr);
 	sk->sport = udp_generate_port();	/* 随机产生一个端口 */
+
+	if (!in_socks)	udp_socks_enqueue(sk);
+	pthread_rwlock_unlock(&slock);
 	return 0;
 }
 
 int
 udp_write(struct sock *sk, const void *buf, int len)
 {
-	struct udp_sock *usk = udp_sk(sk);
 
 	if (len < 0 || len > UDP_MAX_BUFSZ)
 		return -1;
 	/* 可以保证,调用udp_send时的数据长度在正常范围内.可以发送长度为0的udp数据报. */
-	return udp_send(&usk->sk, buf, len);
+	return udp_send(sk, buf, len);
 }
 
 struct sk_buff *
@@ -165,18 +196,21 @@ udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in 
 {
 	extern char *stackaddr;
 	int rc = -1;
-	sk->daddr = ntohl(skaddr->sin_addr.s_addr);
-	sk->dport = ntohs(skaddr->sin_port);
-	sk->sport = udp_generate_port();
-	sk->saddr = ip_parse(stackaddr);
-	//udp_socks_enqueue(sk);
-	rc = udp_send(sk, buf, size);
-	//struct sock *fake_sk = udp_alloc_sock();
-	//fake_sk->daddr = ntohl(skaddr->sin_addr.s_addr);
-	//fake_sk->dport = ntohs(skaddr->sin_port);
-	//fake_sk->sport = udp_generate_port();
-	//fake_sk->saddr = ip_parse(stackaddr);
-	//udp_free_sock(fake_sk);
+
+	/* 如果调用过bind函数,并且skadddr不为空 */
+
+	if (skaddr) {
+		pthread_rwlock_wrlock(&slock);
+		sk->daddr = ntohl(skaddr->sin_addr.s_addr);
+		sk->dport = ntohs(skaddr->sin_port);
+		sk->sport = udp_generate_port();	/* 随机产生一个端口 */
+		sk->saddr = ip_parse(stackaddr);
+		if (!udp_sk_in_socks(sk))
+			list_add_tail(&sk->link, &udp_socks);
+		pthread_rwlock_unlock(&slock);
+		rc = udp_send(sk, buf, size);
+	}
+	/* 如果已经调用过bind函数,绑定过地址了,那么skaddr必须为空 */
 	return rc;
 }
 
@@ -216,11 +250,13 @@ struct sock *
 	return &usk->sk;
 }
 
+
 void 
 udp_free_sock(struct sock *sk)
 {
 	struct udp_sock *usk = udp_sk(sk);
 	free(usk);
+	sk = NULL;
 }
 
 
@@ -235,7 +271,7 @@ udp_read(struct sock *sk, void *buf, int len)
 	memset(buf, 0, len);
 
 	for (;;) {
-		rlen = udp_data_dequeue(usk, buf, len);
+		rlen = udp_data_dequeue(usk, buf, len, NULL);
 		/* rlen != -1表示已经处理了一个udp数据报,可以返回了. */
 		if (rlen != -1) break;
 
@@ -272,3 +308,23 @@ out:
 	return rc;
 }
 
+
+
+/**\
+ *  udp_bind 绑定到一个端口之上,这里需要注意一下,saddr在inet_bind函数中经历过检查
+ *  并不存在什么问题.
+\**/
+static int 
+udp_bind(struct sock *sk, struct sockaddr_in *saddr)
+{
+	int err;
+	uint16_t bindport = ntohs(saddr->sin_port);
+	if ((err = udp_set_sport(sk, bindport)) < 0) {
+		/* 设定端口出错,可能是端口已经被占用 */
+		return -1;
+	}
+	sk->saddr = ntohl(saddr->sin_addr.s_addr);
+	/* 接下来需要将sk挂到udp_socks链上 */
+	udp_socks_enqueue(sk);
+	return 0;
+}

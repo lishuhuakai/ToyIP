@@ -145,19 +145,21 @@ inet_bind(struct socket *sock, struct sockaddr_in * skaddr)
 	int err = -1;
 	uint32_t bindaddr;
 	uint16_t bindport;
-
-	if (sk->ops->bind)
-		return sk->ops->bind(sock->sk, skaddr);
-
+	
+	/* 如果已经绑定过了,不能再次绑定 */
 	if (sk->sport) goto err_out;
 	/* 接下来需要检查skadddr中的地址是不是本机地址 */
 	bindaddr = ntohl(skaddr->sin_addr.s_addr);
 	bindport = ntohs(skaddr->sin_port);
 	if (!local_ipaddress(bindaddr)) goto err_out;
+	
+	if (sk->ops->bind)
+		return sk->ops->bind(sock->sk, skaddr);
+
 	sk->saddr = bindaddr;
 
 	if (sk->ops->set_sport) {
-		if ((err = sk->ops->set_sport(sk, bindport)) < 0)	{
+		if ((err = sk->ops->set_sport(sk, bindport)) < 0) {
 			/* 设定端口出错,可能是端口已经被占用 */
 			sk->saddr = 0;
 			goto err_out;

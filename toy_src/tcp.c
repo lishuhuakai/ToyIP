@@ -82,7 +82,7 @@ tcp_checksum(struct sk_buff *skb, uint32_t saddr, uint32_t daddr)
 }
 
 
-void 
+inline void 
 __tcp_set_state(struct sock *sk, uint32_t state)
 {
 	sk->state = state;
@@ -108,19 +108,6 @@ tcp_generate_isn()
 
 
 
-int
-tcp_free_sock(struct sock *sk)
-{
-	struct tcp_sock *tsk = tcp_sk(sk);
-	pthread_mutex_lock(&sk->lock);
-	tcp_set_state(sk, TCP_CLOSE);
-	tcp_clear_timers(sk);
-	tcp_clear_queues(tsk);
-	pthread_mutex_unlock(&sk->lock);
-
-	wait_wakeup(&tsk->wait);
-	return 0;
-}
 
 int
 tcp_done(struct sock *sk)

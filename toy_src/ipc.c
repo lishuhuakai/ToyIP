@@ -7,8 +7,26 @@
 #define IPC_BUFLEN 4096
 
 static LIST_HEAD(connections);	/* connections是由struct ipc_thread构成的链 */
-static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
 static int conn_count = 0;
+
+static inline void
+ipc_connections_enqueue(struct ipc_thread* th)
+{
+	pthread_rwlock_wrlock(&lock);
+	list_add_tail(&th->list, &connections); /* 将th->list加入到connections的尾部 */
+	conn_count++;
+	pthread_rwlock_unlock(&lock);
+}
+
+static inline void
+ipc_connections_remove(struct ipc_thread *th)
+{
+	pthread_rwlock_wrlock(&lock);
+	list_del_init(&th->list);
+	conn_count--;
+	pthread_rwlock_unlock(&lock);
+}
 
 static struct ipc_thread *
 ipc_alloc_thread(int sock)
@@ -16,12 +34,9 @@ ipc_alloc_thread(int sock)
 	struct ipc_thread *th = calloc(sizeof(struct ipc_thread), 1);
 	list_init(&th->list);
 	th->sock = sock;		/* sock仅仅只是一个标记 */
-
-	pthread_mutex_lock(&lock);
-	list_add_tail(&th->list, &connections); /* 将th->list加入到connections的尾部 */
-	conn_count++;
-	pthread_mutex_unlock(&lock);
-
+	
+	ipc_connections_enqueue(th);
+	
 	ipc_dbg("New IPC socket allocated", th);
 	return th;
 }
@@ -32,20 +47,19 @@ ipc_free_thread(int sock)
 	struct list_head *item, *tmp = NULL;
 	struct ipc_thread *th = NULL;
 
-	pthread_mutex_lock(&lock);
+	pthread_rwlock_rdlock(&lock);
 	list_for_each_safe(item, tmp, &connections) {
 		th = list_entry(item, struct ipc_thread, list);
 
 		if (th->sock == sock) {		/* sock类似于文件描述符 */
-			list_del(&th->list);
+			ipc_connections_remove(th);
 			ipc_dbg("IPC socket deleted", th);
 			close(th->sock);
 			free(th);
-			conn_count--;
 			break;
 		}
 	}
-	pthread_mutex_unlock(&lock);
+	pthread_rwlock_unlock(&lock);
 }
 
 /**\
@@ -191,6 +205,9 @@ ipc_recvfrom(int sockfd, struct ipc_msg *msg)
 
 	actual->sockfd = requested->sockfd;
 	actual->len = rlen;
+	if (saddr) {	/* 拷贝对方的地址信息 */
+		actual->addr = *saddr;
+	}
 	memcpy(actual->buf, rbuf, rlen > 0 ? rlen : 0);
 
 	if (write(sockfd, (char *)response, resplen) == -1) {

@@ -6,7 +6,26 @@
 #include "udp.h"
 
 static LIST_HEAD(sockets);
+static int socket_count = 0;
 static pthread_rwlock_t slock = PTHREAD_RWLOCK_INITIALIZER;
+
+static inline void
+socket_sockets_enqueue(struct socket *sk)
+{
+	pthread_rwlock_wrlock(&slock);
+	list_add_tail(&sk->list, &sockets);
+	socket_count++;
+	pthread_rwlock_unlock(&slock);
+}
+
+static inline void
+socket_sockets_remove(struct socket *sk)
+{
+	pthread_rwlock_wrlock(&slock);
+	list_del_init(&sk->list);
+	socket_count--;
+	pthread_rwlock_unlock(&slock);
+}
 
 extern struct net_family inet;
 
@@ -83,11 +102,15 @@ get_socket(pid_t pid, int fd)
 {
 	struct list_head *item;
 	struct socket *sock = NULL;
-
+	pthread_rwlock_rdlock(&slock);
 	list_for_each(item, &sockets) {
 		sock = list_entry(item, struct socket, list);
-		if (sock->pid == pid && sock->fd == fd) return sock;
+		if (sock->pid == pid && sock->fd == fd) {
+			pthread_rwlock_unlock(&slock);
+			return sock;
+		}
 	}
+	pthread_rwlock_unlock(&slock);
 	return NULL;
 }
 
@@ -128,10 +151,8 @@ _socket(pid_t pid, int domain, int type, int protocol)
 		goto abort_socket;
 	}
 
-	pthread_rwlock_wrlock(&slock);
-	list_add_tail(&sock->list, &sockets); /* 将新构建的socket放入connections链中 */
-	pthread_rwlock_unlock(&slock);
-	return sock->fd;					 /* sock->fd只是一个标志而已 */
+	socket_sockets_enqueue(sock); /* 将新构建的socket放入connections链中 */
+	return sock->fd;  /* sock->fd只是一个标志而已 */
 
 abort_socket:
 	free_socket(sock);
@@ -228,7 +249,7 @@ _close(pid_t pid, int sockfd)
 	}
 	rc = sock->ops->close(sock);
 	if (rc == 0) {
-		list_del(&sock->list); /* 将其从socks链表中删除 */
+		socket_sockets_remove(sock); /* 将其从socks链表中删除 */
 		free_socket(sock);
 	}
 	return rc;
@@ -272,9 +293,7 @@ int
 		newsock = NULL;
 	}
 	else {
-		pthread_rwlock_wrlock(&slock);
-		list_add_tail(&newsock->list, &sockets); 
-		pthread_rwlock_unlock(&slock);
+		socket_sockets_enqueue(newsock);
 		rc = newsock->fd;	/* 返回对应的文件描述符 */
 	}
 out:

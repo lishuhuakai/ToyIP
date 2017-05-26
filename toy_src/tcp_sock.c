@@ -12,7 +12,7 @@ static pthread_rwlock_t cl_lock = PTHREAD_RWLOCK_INITIALIZER;
 static pthread_rwlock_t es_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 
-void inline
+inline void
 tcp_established_or_syn_recvd_socks_enqueue(struct sock *sk)
 {
 	pthread_rwlock_wrlock(&es_lock);
@@ -21,15 +21,15 @@ tcp_established_or_syn_recvd_socks_enqueue(struct sock *sk)
 }
 
 
-void inline
+inline void
 tcp_established_or_syn_recvd_socks_remove(struct sock *sk)
 {
 	pthread_rwlock_wrlock(&es_lock);
-	list_del(&sk->link);
+	list_del_init(&sk->link);
 	pthread_rwlock_unlock(&es_lock);
 }
 
-void inline
+inline void
 tcp_connecting_or_listening_socks_enqueue(struct sock *sk)
 {
 	pthread_rwlock_wrlock(&cl_lock);
@@ -37,11 +37,11 @@ tcp_connecting_or_listening_socks_enqueue(struct sock *sk)
 	pthread_rwlock_unlock(&cl_lock);
 }
 
-void inline
+inline void
 tcp_connecting_or_listening_socks_remove(struct sock *sk)
 {
 	pthread_rwlock_wrlock(&cl_lock);
-	list_del(&sk->link);
+	list_del_init(&sk->link);
 	pthread_rwlock_unlock(&cl_lock);
 }
 
@@ -95,7 +95,23 @@ struct sock *
 	return (struct sock *)tsk;
 }
 
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+
+int
+tcp_free_sock(struct sock *sk)
+{
+	struct tcp_sock *tsk = tcp_sk(sk);
+	pthread_mutex_lock(&sk->lock);
+	tcp_set_state(sk, TCP_CLOSE);
+	tcp_clear_timers(sk);
+	tcp_clear_queues(tsk);
+	pthread_mutex_unlock(&sk->lock);
+	wait_wakeup(&tsk->wait);
+	// tofix: 删除tsk
+	//free(tsk);
+	//tsk = NULL;
+	return 0;
+}
+
 
 /**\
  * tcp_init 对整个tcp协议做一些初始化工作.
@@ -233,6 +249,7 @@ tcp_close(struct sock *sk)
 		tcp_set_state(sk, TCP_CLOSE);
 		/* 将其从tcp_connecting_or_listening_socks中删除 */
 		tcp_connecting_or_listening_socks_remove(sk);
+		tcp_free_sock(sk);
 		break;
 	case TCP_SYN_SENT:
 		/* 服务端接受到了现在处于syn_sent状态的客户端发送的syn,进入syn_received状态,

@@ -53,7 +53,7 @@ int udp_connect(struct sock *sk, const struct sockaddr_in *addr);
 int udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in *skaddr);
 int udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
 int udp_close(struct sock *sk);
-int udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen);
+int udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen, struct sockaddr_in *saddr);
 uint16_t udp_generate_port();
 
 struct sock * udp_lookup_sock(uint16_t dport);

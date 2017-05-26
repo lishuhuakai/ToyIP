@@ -230,7 +230,7 @@ void tcp_stop_delack_timer(struct tcp_sock *tsk);
 void tcp_release_delack_timer(struct tcp_sock *tsk);
 void tcp_handle_fin_state(struct sock *sk);
 void tcp_enter_time_wait(struct sock *sk);
-void _tcp_set_state(struct sock *sk, uint32_t state);
+void __tcp_set_state(struct sock *sk, uint32_t state);
 void tcp_in(struct sk_buff *skb);
 void tcp_send_delack(uint32_t ts, void *arg);
 int tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb);
