@@ -48,26 +48,6 @@ tcp_clean_retransmission_queue(struct sock *sk, uint32_t una)
 	return rc;
 }
 
-static void
-tcp_reset(struct sock *sk) {
-	switch (sk->state) {
-	case TCP_SYN_SENT:
-		sk->err = -ECONNREFUSED;	/* 连接失败 */
-		break;
-	/* 此端接收到对端的发送的FIN,进入CLOSE_WAIT状态,此时对方不应该再发送tcp数据,
-	 因为发送的FIN表示关闭写的管道.向已经关闭的管道写数据,会导致管道破裂(EPIPE)错误. */
-	case TCP_CLOSE_WAIT: 
-		sk->err = -EPIPE;			
-		break;
-	case TCP_CLOSE:
-		return;
-	default:
-		sk->err = -ECONNRESET;
-		break;
-	}
-
-	tcp_free_sock(sk);
-}
 
 /**\
  * tcp_drop 用于丢弃数据报. 

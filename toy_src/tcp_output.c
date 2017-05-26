@@ -98,8 +98,10 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 	return ip_output(sk, skb);
 }
 
-/* tcp_queue_transmit_skb 将要发送的内容加入write_queue,没有接受到ack的话,会一直重
- 传该数据包,而tcp_transmit_skb函数不会如此. */
+/**\
+ * tcp_queue_transmit_skb 将要发送的内容加入write_queue,没有接受到ack的话,会一直重
+ * 传该数据包,而tcp_transmit_skb函数不会如此. 
+\**/
 static int
 tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 {
@@ -156,7 +158,9 @@ tcp_send_delack(uint32_t ts, void *arg)
 	tcp_send_ack(sk);
 }
 
-/* tcp_send_ack 发送ack */
+/**\
+ * tcp_send_ack 发送ack.
+\**/
 int
 tcp_send_ack(struct sock *sk)
 {
@@ -250,8 +254,10 @@ tcp_connect_rto(uint32_t ts, void *arg)
 	tcp_release_retransmission_timer(tsk);
 
 	if (sk->state != TCP_ESTABLISHED) {
-		if (tsk->backoff > TCP_CONN_RETRIES) {
+		if (tsk->backoff > TCP_CONN_RETRIES) { /* 如果退避的次数过多,表示连接不通,
+											   要通知上层. */
 			tsk->sk.err = -ETIMEDOUT;  /* 超时 */
+			// tofix: 要将sk从链表中移除
 			tcp_free_sock(sk);
 		}
 		else {
@@ -276,8 +282,10 @@ tcp_connect_rto(uint32_t ts, void *arg)
 }
 
 
-/* tcp_retransmission_timeout 如果在规定的时间内还没有收到tcp数据报的确认,那么要重传
-该数据包. */
+/**\
+ * tcp_retransmission_timeout 如果在规定的时间内还没有收到tcp数据报的确认,那么要重传
+ * 该数据包. 
+\**/
 static void
 tcp_retransmission_timeout(uint32_t ts, void *arg)
 {
@@ -312,7 +320,9 @@ unlock:
 }
 
 
-/* tcp_reset_retransmission_timer 用于重新设置重传定时器 */
+/**\
+ * tcp_reset_retransmission_timer 用于重新设置重传定时器.
+\**/
 void
 tcp_reset_retransmission_timer(struct tcp_sock *tsk)
 {

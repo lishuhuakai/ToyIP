@@ -72,7 +72,7 @@ inet_create(struct socket *sock, int protocol)
 	
 	sk->protocol = protocol;
 
-	sock_init_with_socket(sock, sk);	/* 对sock的其他域做一些初始化工作. */
+	sk_init_with_socket(sock, sk);	/* 对sock的其他域做一些初始化工作. */
 	return 0;
 }
 
@@ -133,7 +133,7 @@ int
 inet_free(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	sock_free(sk);
+	sk_free(sk);
 	free(sock->sk);
 	return 0;
 }
@@ -210,7 +210,7 @@ inet_accept(struct socket *sock, struct socket *newsock,
 			skaddr->sin_addr.s_addr = htonl(newsk->daddr);
 			skaddr->sin_port = htons(newsk->dport);
 		}
-		sock_init_with_socket(newsock, newsk);	/* 对struct sock部分做初始化工作 */
+		sk_init_with_socket(newsock, newsk);	/* 对struct sock部分做初始化工作 */
 		err = 0;
 	}
 out:

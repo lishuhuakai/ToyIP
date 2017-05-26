@@ -12,7 +12,7 @@ sk_alloc(struct net_ops *ops, int protocol)
 }
 
 void
-sock_init(struct sock *sk)
+sk_init(struct sock *sk)
 {
 	sk->sock = NULL;
 	wait_init(&sk->recv_wait);
@@ -22,17 +22,17 @@ sock_init(struct sock *sk)
 	sk->ops->init(sk);						/* net_ops做初始化工作 */
 }
 
-/* sock_init_with_socket用于初始化sk,并且将sk记录到sock中 */
+/* sk_init_with_socket用于初始化sk,并且将sk记录到sock中 */
 void
-sock_init_with_socket(struct socket *sock, struct sock *sk)
+sk_init_with_socket(struct socket *sock, struct sock *sk)
 {
-	sock_init(sk);
+	sk_init(sk);
 	sock->sk = sk;
 	sk->sock = sock;
 }
 
 void 
-sock_free(struct sock *sk)
+sk_free(struct sock *sk)
 {
 	skb_queue_free(&sk->receive_queue);
 	skb_queue_free(&sk->write_queue);

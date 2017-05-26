@@ -40,13 +40,6 @@ tcp_init_segment(struct tcphdr *th, struct iphdr *ih, struct sk_buff *skb)
 	skb->payload = th->data;
 }
 
-static void
-tcp_clear_queues(struct tcp_sock *tsk) 
-{
-	pthread_mutex_lock(&tsk->ofo_queue.lock);
-	skb_queue_free(&tsk->ofo_queue);
-	pthread_mutex_unlock(&tsk->ofo_queue.lock);
-}
 
 void
 tcp_in(struct sk_buff *skb)
@@ -114,9 +107,6 @@ tcp_done(struct sock *sk)
 {
 	tcp_established_or_syn_recvd_socks_remove(sk);
 	tcp_free_sock(sk);
-	if (sk->sock) {
-		free_socket(sk->sock);
-	}
 	return 0;
 }
 

@@ -50,8 +50,8 @@ write_queue_head(struct sock *sk) {
 }
 
 struct sock *sk_alloc(struct net_ops *ops, int protocol);
-void sock_free(struct sock *sk);
-void sock_init(struct sock *sk);
-void sock_init_with_socket(struct socket *sock, struct sock *sk);
+void sk_free(struct sock *sk);
+void sk_init(struct sock *sk);
+void sk_init_with_socket(struct socket *sock, struct sock *sk);
 
 #endif // !SOCK_H

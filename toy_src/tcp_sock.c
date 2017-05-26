@@ -96,6 +96,15 @@ struct sock *
 }
 
 
+static void
+tcp_clear_queues(struct tcp_sock *tsk) 
+{
+	pthread_mutex_lock(&tsk->ofo_queue.lock);
+	skb_queue_free(&tsk->ofo_queue);
+	pthread_mutex_unlock(&tsk->ofo_queue.lock);
+
+}
+
 int
 tcp_free_sock(struct sock *sk)
 {
@@ -105,10 +114,10 @@ tcp_free_sock(struct sock *sk)
 	tcp_clear_timers(sk);
 	tcp_clear_queues(tsk);
 	pthread_mutex_unlock(&sk->lock);
-	wait_wakeup(&tsk->wait);
-	// tofix: É¾³ýtsk
-	//free(tsk);
-	//tsk = NULL;
+	if (sk->sock) sk->sock->sk = NULL;
+	sk_free(sk);
+	free(tsk);
+	tsk = NULL;
 	return 0;
 }
 
