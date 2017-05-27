@@ -29,7 +29,9 @@ route_alloc(uint32_t dst, uint32_t gateway, uint32_t netmask,
 	return rt;
 }
 
-// route_add 添加路由项
+/**\
+ * route_add 添加路由项.
+\**/
 void 
 route_add(uint32_t dst, uint32_t gateway, uint32_t netmask, uint8_t flags,
 	uint32_t metric, struct netdev *dev)
@@ -49,7 +51,9 @@ route_init()
 	route_add(0, ip_parse(tapaddr), 0, RT_GATEWAY, 0, netdev); // 默认的网关
 }
 
-// route_lookup 从路由表中查找路由
+/**\
+ * route_lookup 从路由表中查找路由.
+\**/
 struct rtentry  *
 	route_lookup(uint32_t daddr)
 {
@@ -59,7 +63,7 @@ struct rtentry  *
 	list_for_each(item, &routes) {
 		rt = list_entry(item, struct rtentry, list);
 		if ((rt->netmask & daddr) == rt->dst) break;
-		// 如果不能匹配的话,我们默认使用最后一个项,也就是网关
+		/* 如果不能匹配的话,我们默认使用最后一个项,也就是网关 */
 	}
 	return rt;
 }

@@ -26,7 +26,9 @@ free_skb(struct sk_buff *skb)
 	}
 }
 
-/* skb_reserve丢弃掉前len个数据,或者说是保留前面长度为len的数据 */
+/**\
+ * skb_reserve丢弃掉前len个数据,或者说是保留前面长度为len的数据.
+\**/
 void *
 skb_reserve(struct sk_buff *skb, unsigned int len)
 {

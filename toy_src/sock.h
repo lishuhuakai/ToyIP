@@ -36,7 +36,7 @@ struct sock {
 	struct sk_buff_head write_queue;	/* 发送队列  */
  	pthread_mutex_t lock;				/* 多线程下需要加锁 */
 	int protocol;						/* 协议 */
-	int state;							/* 状态这个东西应该是tcp协议所独有 */
+	int state;							/* 记录下sock当前所在状态 */
 	int err;		
 	uint16_t sport;				
 	uint16_t dport;						/* 对方端口号 */

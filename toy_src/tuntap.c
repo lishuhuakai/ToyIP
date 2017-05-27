@@ -6,9 +6,9 @@
 static int tun_fd;
 static char* dev;
 
-char *tapaddr = "10.0.1.5";		// tap设备的地址
+char *tapaddr = "10.0.1.5";		/* tap设备的地址 */
 char *taproute = "10.0.1.0/24";
-char *stackaddr = "10.0.1.4";
+char *stackaddr = "10.0.1.4";   /* 本协议栈模拟的ip地址 */
 
 static int 
 set_if_route(char *dev, char *cidr)
@@ -54,7 +54,7 @@ tun_alloc(char *dev)
 		strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 	}
 
-	if ((err = ioctl(fd, TUNSETIFF, (void *)&ifr)) < 0) {  // 打开虚拟网卡
+	if ((err = ioctl(fd, TUNSETIFF, (void *)&ifr)) < 0) {
 		perror("ERR: Could not ioctl tun");
 		close(fd);
 		return err;

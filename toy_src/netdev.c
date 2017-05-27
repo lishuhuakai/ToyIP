@@ -39,6 +39,7 @@ void
 netdev_init()
 {
 	loop = netdev_alloc("127.0.0.1", "00:00:00:00:00:00", 1500);
+	/* 下面的mac地址是捏造的. */
 	netdev = netdev_alloc("10.0.1.4", "00:0c:29:6d:50:25", 1500);
 }
 
@@ -126,7 +127,9 @@ free_netdev()
 	free(netdev);
 }
 
-/* local_ipaddress用于判断addr是否为本机地址 */
+/**\
+ * local_ipaddress用于判断addr是否为本机地址.
+\**/
 int
 local_ipaddress(uint32_t addr)
 {

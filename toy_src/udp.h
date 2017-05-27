@@ -16,6 +16,13 @@
 #define udpdbg(x)
 #endif
 
+/* udp协议实际上并没有状态,这些只是为了处理方便而设定的伪状态 */
+enum udp_state {
+	UDP_UNCONNECTED,
+	UDP_CONNECTED,
+	UDP_CLOSED
+};
+
 struct udphdr {
 	uint16_t sport;		/* 源端口				*/
 	uint16_t dport;		/* 目的端口			*/

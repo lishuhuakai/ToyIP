@@ -31,7 +31,8 @@ timers_tick()
 	struct list_head *item, *tmp = NULL;
 	struct timer *t = NULL;
 
-    list_for_each_safe(item, tmp, &timers) {	// 遍历每个timer(定时器),如果到期,则执行,过期或者取消,则释放.
+    list_for_each_safe(item, tmp, &timers) {	/* 遍历每个timer(定时器),如果
+												到期,则执行,过期或者取消,则释放.*/
         t = list_entry(item, struct timer, list);
 
         if (!t->cancelled && t->expires < tick) {

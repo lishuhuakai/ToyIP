@@ -26,6 +26,9 @@ udp_socks_remove(struct sock *sk)
 	pthread_rwlock_unlock(&slock);
 }
 
+/**\
+ * udp_sk_in_socks  判断sk是否已经挂到了udp_socks这张链表之中.
+\**/
 static inline int
 udp_sk_in_socks(struct sock *sk)
 {
@@ -144,26 +147,33 @@ udp_clean_up_receive_queue(struct sock *sk)
 int
 udp_connect(struct sock *sk, const struct sockaddr_in *addr)
 {
-	/* udp没有三次握手的过程,在这里只需要做一些检查,
-	 如果没有错误,就记录对端的IP地址和端口号,立即返回. */
 	extern char * stackaddr;
 	int in_socks = 0;
 
 	// todo: 对ip地址做检查
+
 	uint16_t dport = addr->sin_port;
 	uint32_t daddr = addr->sin_addr.s_addr;
 	pthread_rwlock_wrlock(&slock);
-	if (sk->daddr != 0) {
+	
+	/* 可以多次调用connnect,第一要做的是断开之前的连接 */
+	if (sk->state == UDP_CONNECTED)
 		udp_clean_up_receive_queue(sk);
-		in_socks = 1;
-	}
+
+	/* 如果sk->saddr != NULL表示sk已经被挂在udp_sock之上了 */
+	if (sk->saddr != NULL) in_socks = 1;
+
 
 	sk->dport = ntohs(dport);
 	sk->daddr = ntohl(daddr);
 	sk->saddr = parse_ipv4_string(stackaddr);
 	sk->sport = udp_generate_port();	/* 随机产生一个端口 */
+	sk->state = UDP_CONNECTED;
 
-	if (!in_socks)	udp_socks_enqueue(sk);
+	if (!in_socks) {
+		list_add_tail(&sk->link, &udp_socks);
+		udp_sock_amount++;
+	}
 	pthread_rwlock_unlock(&slock);
 	return 0;
 }
@@ -197,9 +207,12 @@ udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in 
 	extern char *stackaddr;
 	int rc = -1;
 
-	/* 如果调用过bind函数,并且skadddr不为空 */
-
-	if (skaddr) {
+	/* 如果已经调用过bind函数,绑定过地址了,那么skaddr必须为空 */
+	if ((sk->state == UDP_CONNECTED) && (skaddr == NULL)) {
+		rc = udp_send(sk, buf, size);	
+	}
+	/* 如果没有调用过bind函数,并且skaddr不为空 */
+	else if ((sk->state == UDP_UNCONNECTED) && (skaddr != NULL)) {
 		pthread_rwlock_wrlock(&slock);
 		sk->daddr = ntohl(skaddr->sin_addr.s_addr);
 		sk->dport = ntohs(skaddr->sin_port);
@@ -210,7 +223,6 @@ udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in 
 		pthread_rwlock_unlock(&slock);
 		rc = udp_send(sk, buf, size);
 	}
-	/* 如果已经调用过bind函数,绑定过地址了,那么skaddr必须为空 */
 	return rc;
 }
 
@@ -247,6 +259,7 @@ struct sock *
 	struct udp_sock *usk = malloc(sizeof(struct udp_sock));
 	memset(usk, 0, sizeof(struct udp_sock));
 	usk->sk.ops = &udp_ops;
+	usk->sk.state = UDP_UNCONNECTED;
 	return &usk->sk;
 }
 
@@ -318,6 +331,8 @@ static int
 udp_bind(struct sock *sk, struct sockaddr_in *saddr)
 {
 	int err;
+	/* 不能多次调用bind */
+	if (sk->saddr != 0) return -1;
 	uint16_t bindport = ntohs(saddr->sin_port);
 	if ((err = udp_set_sport(sk, bindport)) < 0) {
 		/* 设定端口出错,可能是端口已经被占用 */

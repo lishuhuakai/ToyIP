@@ -3,21 +3,43 @@
 #include "ipc.h"
 #include "list.h"
 #include <assert.h>
+#include <pthread.h>
 #define RCBUF_LEN 512
 
 static LIST_HEAD(lvlip_socks);
+static int socks_count = 0;
+//static pthread_rwlock_t lvlip_lock = PTHREAD_RWLOCK_INITIALIZER;
+
+static inline void
+lvlip_socks_enqueue(struct lvlip_sock *sk)
+{
+	//pthread_rwlock_wrlock(&lvlip_lock);
+	list_add_tail(&sk->list, &lvlip_socks);
+	//pthread_rwlock_unlock(&lvlip_lock);
+}
+
+static inline void
+lvlip_socks_remove(struct lvlip_sock *sk)
+{
+	//pthread_rwlock_wrlock(&lvlip_lock);
+	list_del_init(&sk->list);
+	//pthread_rwlock_unlock(&lvlip_lock);
+}
 
 static inline struct lvlip_sock *
 lvlip_get_sock(int fd)
 {
     struct list_head *item;
     struct lvlip_sock *sock;
-
+	//pthread_rwlock_rdlock(&lvlip_lock);
     list_for_each(item, &lvlip_socks) {
         sock = list_entry(item, struct lvlip_sock, list);
-        if (sock->fd == fd) return sock;
+		if (sock->fd == fd) {
+			//pthread_rwlock_unlock(&lvlip_lock);
+			return sock;
+		}
     };
-
+	//pthread_rwlock_unlock(&lvlip_lock);
     return NULL;
 };
 
@@ -108,10 +130,12 @@ lvl_socket(int domain, int type, int protocol)
 		return -1;
     }
     struct lvlip_sock *sock;
+	struct ipc_socket* actual;
     int lvlfd = init_socket("/tmp/lvlip.socket"); /* 返回的是一个文件描述符 */
     sock = lvlip_alloc();	
     sock->lvlfd = lvlfd;
-    list_add_tail(&sock->list, &lvlip_socks);
+	
+	lvlip_socks_enqueue(sock);
     
     int pid = getpid();
     int msglen = sizeof(struct ipc_msg) + sizeof(struct ipc_socket);
@@ -120,12 +144,10 @@ lvl_socket(int domain, int type, int protocol)
     msg->type = IPC_SOCKET;
     msg->pid = pid;
 
-    struct ipc_socket usersock = {
-        .domain = domain,
-        .type = type,
-        .protocol = protocol
-    };
-    memcpy(msg->data, &usersock, sizeof(struct ipc_socket));
+	actual = (struct ipc_socket *)msg->data;
+	actual->domain = domain;
+	actual->type = type;
+	actual->protocol = protocol;
 
     int sockfd = transmit_lvlip(sock->lvlfd, msg, msglen);
 
@@ -168,7 +190,7 @@ lvl_close(int fd)
     rc = transmit_lvlip(sock->lvlfd, msg, msglen);
     
 	if (rc == 0) {
-		list_del(&sock->list);
+		lvlip_socks_remove(sock);
 		lvlip_free(sock);
 	}
 
@@ -367,7 +389,7 @@ lvl_sendto(int fd, const void *buf, size_t len,  const struct sockaddr_in *saddr
 }
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-ssize_t 
+ssize_t
 lvl_recvfrom(int sockfd, void * buf, size_t len, struct sockaddr_in * address)
 {
 	struct lvlip_sock *sock = lvlip_get_sock(sockfd);
@@ -384,21 +406,18 @@ lvl_recvfrom(int sockfd, void * buf, size_t len, struct sockaddr_in * address)
 	msg->type = IPC_RECVFROM;
 	msg->pid = pid;
 
-	rf = msg->data;
+	rf = (struct ipc_recvfrom *)msg->data;
 	rf->sockfd = sockfd;
 	rf->len = len;
-	if (address) {
-		rf->addr = *address;
-		rf->contain_addr = 1;
-	}
-	else
-	rf->contain_addr = 0;
+	rf->contain_addr = address ? 1 : 0;
+	
 
 	if (write(sock->lvlfd, (char *)msg, msglen) == -1) {
 		perror("Error on writing IPC recvfrom");
 		return -1;
 	}
 
+	/* 需要读取的数据的长度 */
 	rlen = sizeof(struct ipc_msg) + sizeof(struct ipc_recvfrom) +
 		sizeof(struct ipc_err) + len;
 	char rbuf[rlen];
@@ -430,6 +449,8 @@ lvl_recvfrom(int sockfd, void * buf, size_t len, struct sockaddr_in * address)
 	}
 	memset(buf, 0, len);
 	memcpy(buf, data->buf, data->len);
+	if (address)
+		*address = data->addr;	/* 对端的地址信息 */
 	return data->len;
 }
 

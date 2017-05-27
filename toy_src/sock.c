@@ -38,4 +38,3 @@ sk_free(struct sock *sk)
 	skb_queue_free(&sk->write_queue);
 	pthread_mutex_destroy(&sk->lock);
 }
-
