@@ -2,7 +2,7 @@
 #include "tcp.h"
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-/* ÎªÁË¾¡¿ÉÄÜ¼ò½à,ËùÒÔÊµÏÖ·Ç³£¼òµ¥. */
+/* ä¸ºäº†å°½å¯èƒ½ç®€æ´,æ‰€ä»¥å®ç°éå¸¸ç®€å•. */
 
 
 static LIST_HEAD(tcp_connecting_or_listening_socks);
@@ -58,7 +58,7 @@ struct net_ops tcp_ops = {
 	.listen = &tcp_listen,
 	.send_buf = &tcp_write,
 	.recv_buf = &tcp_read,
-	.recv_notify = &tcp_recv_notify,	/* recv_notifyÓÃÓÚ»½ĞÑµ÷ÓÃ¸ÃĞ­ÒéÕ»µÄÓ¦ÓÃ³ÌĞò */
+	.recv_notify = &tcp_recv_notify,	/* recv_notifyç”¨äºå”¤é†’è°ƒç”¨è¯¥åè®®æ ˆçš„åº”ç”¨ç¨‹åº */
 	.close = &tcp_close,
 	.set_sport = &tcp_set_sport,
 };
@@ -69,7 +69,7 @@ struct sock *
 {
 	struct tcp_sock *tsk = malloc(sizeof(struct tcp_sock));
 	memset(tsk, 0, sizeof(struct tcp_sock));
-	tsk->sk.state = TCP_CLOSE;		/* ×î¿ªÊ¼´¦ÔÚ¹Ø±Õ×´Ì¬ */
+	tsk->sk.state = TCP_CLOSE;		/* æœ€å¼€å§‹å¤„åœ¨å…³é—­çŠ¶æ€ */
 	tsk->flags = 0;
 	tsk->backoff = 0;
 
@@ -84,7 +84,7 @@ struct sock *
 	tsk->sk.ops = &tcp_ops;
 	/* todo: determine mss properly */
 
-	/* ÉèÖÃ×î´ó±¨ÎÄ¶Î³¤¶È */
+	/* è®¾ç½®æœ€å¤§æŠ¥æ–‡æ®µé•¿åº¦ */
 	tsk->rmss = 1460;
 	tsk->smss = 1460;
 
@@ -123,7 +123,7 @@ tcp_free_sock(struct sock *sk)
 
 
 /**\
- * tcp_init ¶ÔÕû¸ötcpĞ­Òé×öÒ»Ğ©³õÊ¼»¯¹¤×÷.
+ * tcp_init å¯¹æ•´ä¸ªtcpåè®®åšä¸€äº›åˆå§‹åŒ–å·¥ä½œ.
 \**/
 int
 tcp_init()
@@ -132,7 +132,7 @@ tcp_init()
 }
 
 /**\
- * tcp_sock_init Ã¿¹¹½¨Ò»¸ötcp_sock,¶¼»áµ÷ÓÃÕâ¸öº¯Êı¶Ô¸Ãtcp_sock×ö³õÊ¼»¯ 
+ * tcp_sock_init æ¯æ„å»ºä¸€ä¸ªtcp_sock,éƒ½ä¼šè°ƒç”¨è¿™ä¸ªå‡½æ•°å¯¹è¯¥tcp_sockåšåˆå§‹åŒ– 
 \**/
 int
 tcp_sock_init(struct sock *sk)
@@ -142,14 +142,14 @@ tcp_sock_init(struct sock *sk)
 
 
 /**\
- * tcp_port_usedÓÃÓÚÅĞ¶Ïport¶Ë¿ÚÊÇ·ñÒÑ¾­±»Ê¹ÓÃ.
+ * tcp_port_usedç”¨äºåˆ¤æ–­portç«¯å£æ˜¯å¦å·²ç»è¢«ä½¿ç”¨.
 \**/
 static int
 tcp_port_used(uint16_t pt)
 {
 	struct list_head* item;
 	struct sock* it;
-	/* ±éÀú¼àÌı¶ÓÁĞ,²é¿´ÊÇ·ñportÒÑ¾­±»Ê¹ÓÃ */
+	/* éå†ç›‘å¬é˜Ÿåˆ—,æŸ¥çœ‹æ˜¯å¦portå·²ç»è¢«ä½¿ç”¨ */
 	list_for_each(item, &tcp_connecting_or_listening_socks) {
 		it = list_entry(item, struct sock, link);
 		if (it->sport == pt) return 1;
@@ -158,15 +158,15 @@ tcp_port_used(uint16_t pt)
 }
 
 /**\
- * tcp_set_sportÓÃÓÚÉèÖÃÔ´¶Ë¿Ú,ĞèÒª±£Ö¤,portÊÇÖ÷»ú×Ö½ÚĞò.
+ * tcp_set_sportç”¨äºè®¾ç½®æºç«¯å£,éœ€è¦ä¿è¯,portæ˜¯ä¸»æœºå­—èŠ‚åº.
 \**/
 static int
 tcp_set_sport(struct sock *sk, uint16_t port)
 {
 	int err = -1;
-	/* ¶Ë¿ÚºÅ²»ÄÜÎª0 */
+	/* ç«¯å£å·ä¸èƒ½ä¸º0 */
 	if (!port) goto out;
-	/* ¶Ë¿ÚÒÑ¾­±»Õ¼ÓÃ */
+	/* ç«¯å£å·²ç»è¢«å ç”¨ */
 	if (port && tcp_port_used(port)) goto out;
 
 	sk->sport = port;
@@ -177,16 +177,16 @@ out:
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 int
-tcp_write(struct sock *sk, const void *buf, int len)
+tcp_write(struct sock *sk, const void *buf, const uint len)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	int ret = -1;
 
 	switch (sk->state) {
-		/* Ö»ÓĞestablishedºÍclose_waitÁ½¸ö×´Ì¬¿ÉÒÔÏò¶Ô¶Ë·¢ËÍÊı¾İ */
+		/* åªæœ‰establishedå’Œclose_waitä¸¤ä¸ªçŠ¶æ€å¯ä»¥å‘å¯¹ç«¯å‘é€æ•°æ® */
 	case TCP_ESTABLISHED:
-	case TCP_CLOSE_WAIT: /* close_wait×´Ì¬Ö¸µÄÊÇ½ÓÊÕµ½ÁË¶Ô¶Ë·¢ËÍµÄfin,
-						 µ«ÊÇ´Ë¶Ë»¹¿ÉÒÔÏò¶Ô¶Ë·¢ËÍÊı¾İ */
+	case TCP_CLOSE_WAIT: /* close_waitçŠ¶æ€æŒ‡çš„æ˜¯æ¥æ”¶åˆ°äº†å¯¹ç«¯å‘é€çš„fin,
+						 ä½†æ˜¯æ­¤ç«¯è¿˜å¯ä»¥å‘å¯¹ç«¯å‘é€æ•°æ® */
 		break;
 	default:
 		goto out;
@@ -198,7 +198,7 @@ out:
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 int
-tcp_read(struct sock *sk, void *buf, int len)
+tcp_read(struct sock *sk, void *buf, const uint len)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	int ret = -1;
@@ -214,17 +214,17 @@ tcp_read(struct sock *sk, void *buf, int len)
 	case TCP_FIN_WAIT_1:
 	case TCP_FIN_WAIT_2:
 		break;
-	case TCP_CLOSE_WAIT: /* µ½´ïÁËclose_wait×´Ì¬Ö®ºó,¶Ô·½²»Ó¦¸ÃÔÙ·¢ËÍtcpÊı¾İ¹ıÀ´ */
+	case TCP_CLOSE_WAIT: /* åˆ°è¾¾äº†close_waitçŠ¶æ€ä¹‹å,å¯¹æ–¹ä¸åº”è¯¥å†å‘é€tcpæ•°æ®è¿‡æ¥ */
 		if (!skb_queue_empty(&tsk->sk.receive_queue)) break;
 		if (tsk->flags & TCP_FIN) {
 			tsk->flags &= ~TCP_FIN;
 			return 0;
 		}
 		break;
-		/* closing --Á½¶ËÍ¬Ê±¹Ø±Õ,·¢ËÍÁËfin,²¢ÇÒ½ÓÊÕµ½ÁË¶Ô·½µÄfin,´ËÊ±½øÈëclosing×´Ì¬;
-		last_ack --·şÎñ¶ËÏò¶Ô·½·¢ËÍÁËfin,Ö»ĞèÒª½ÓÊÕ¶Ô·½µÄACK,¾Í¿ÉÒÔ½øÈëclosed×´Ì¬;
-		time_wait --¿Í»§¶Ë½ÓÊÕµ½ÁË´¦ÓÚlast_ack×´Ì¬µÄ·şÎñ¶Ë·¢ËÍµÄfin,×îºóÒ»´ÎÏò·şÎñ¶Ë·¢ËÍack;
-		ÒÔÉÏµÄÕâĞ©×´Ì¬¶¼²»¿ÉÄÜ·¢ËÍtcpÊı¾İ¸ø¶Ô·½. */
+		/* closing --ä¸¤ç«¯åŒæ—¶å…³é—­,å‘é€äº†fin,å¹¶ä¸”æ¥æ”¶åˆ°äº†å¯¹æ–¹çš„fin,æ­¤æ—¶è¿›å…¥closingçŠ¶æ€;
+		last_ack --æœåŠ¡ç«¯å‘å¯¹æ–¹å‘é€äº†fin,åªéœ€è¦æ¥æ”¶å¯¹æ–¹çš„ACK,å°±å¯ä»¥è¿›å…¥closedçŠ¶æ€;
+		time_wait --å®¢æˆ·ç«¯æ¥æ”¶åˆ°äº†å¤„äºlast_ackçŠ¶æ€çš„æœåŠ¡ç«¯å‘é€çš„fin,æœ€åä¸€æ¬¡å‘æœåŠ¡ç«¯å‘é€ack;
+		ä»¥ä¸Šçš„è¿™äº›çŠ¶æ€éƒ½ä¸å¯èƒ½å‘é€tcpæ•°æ®ç»™å¯¹æ–¹. */
 	case TCP_CLOSING:
 	case TCP_LAST_ACK:
 	case TCP_TIME_WAIT:
@@ -243,7 +243,7 @@ int
 tcp_close(struct sock *sk)
 {
 	switch (sk->state) {
-		/* ÒÔÏÂÕâĞ©×´Ì¬ÒÑ¾­ÕıÔÚ´¦Àíclose,²»ÄÜÔÙ´ÎÖ´ĞĞclose */
+		/* ä»¥ä¸‹è¿™äº›çŠ¶æ€å·²ç»æ­£åœ¨å¤„ç†close,ä¸èƒ½å†æ¬¡æ‰§è¡Œclose */
 	case TCP_CLOSE:
 	case TCP_CLOSING:
 	case TCP_LAST_ACK:
@@ -252,25 +252,25 @@ tcp_close(struct sock *sk)
 	case TCP_FIN_WAIT_2:
 		sk->err = -EBADF;
 		return -1;
-		/* ·şÎñ¶ËÒ»°ã¶¼´¦ÔÚlisten×´Ì¬ */
+		/* æœåŠ¡ç«¯ä¸€èˆ¬éƒ½å¤„åœ¨listençŠ¶æ€ */
 	case TCP_LISTEN:
-		/* ¿Í»§¶ËÏò·şÎñ¶Ë·¢ËÍÁËsyn,½øÈësyn_sent×´Ì¬ */
+		/* å®¢æˆ·ç«¯å‘æœåŠ¡ç«¯å‘é€äº†syn,è¿›å…¥syn_sentçŠ¶æ€ */
 		tcp_set_state(sk, TCP_CLOSE);
-		/* ½«Æä´Ótcp_connecting_or_listening_socksÖĞÉ¾³ı */
+		/* å°†å…¶ä»tcp_connecting_or_listening_socksä¸­åˆ é™¤ */
 		tcp_connecting_or_listening_socks_remove(sk);
 		tcp_free_sock(sk);
 		break;
 	case TCP_SYN_SENT:
-		/* ·şÎñ¶Ë½ÓÊÜµ½ÁËÏÖÔÚ´¦ÓÚsyn_sent×´Ì¬µÄ¿Í»§¶Ë·¢ËÍµÄsyn,½øÈësyn_received×´Ì¬,
-		Õı³£Çé¿öÏÂ,ÒªÏò¶Ô·½·¢ËÍsynºÍack */
+		/* æœåŠ¡ç«¯æ¥å—åˆ°äº†ç°åœ¨å¤„äºsyn_sentçŠ¶æ€çš„å®¢æˆ·ç«¯å‘é€çš„syn,è¿›å…¥syn_receivedçŠ¶æ€,
+		æ­£å¸¸æƒ…å†µä¸‹,è¦å‘å¯¹æ–¹å‘é€synå’Œack */
 	case TCP_SYN_RECEIVED:
 	case TCP_ESTABLISHED:
-		tcp_queue_fin(sk);	/* Ïò¶Ô¶Ë·¢ËÍfin,½øÈëfin_wait_1×´Ì¬ */
+		tcp_queue_fin(sk);	/* å‘å¯¹ç«¯å‘é€fin,è¿›å…¥fin_wait_1çŠ¶æ€ */
 		tcp_set_state(sk, TCP_FIN_WAIT_1);
 		break;
 	case TCP_CLOSE_WAIT:
-		/* close_waitÊôÓÚ±»¶¯¹Ø±Õ,µ«ÊÇÕâ¸ö×´Ì¬»¹¿ÉÒÔÏò¶Ô¶Ë·¢ËÍÊı¾İ,µ«ÊÇÒ»µ©Ïò±Ë·½·¢ËÍÁËfin
-		Á¢¼´½øÈëlask_ack×´Ì¬ */
+		/* close_waitå±äºè¢«åŠ¨å…³é—­,ä½†æ˜¯è¿™ä¸ªçŠ¶æ€è¿˜å¯ä»¥å‘å¯¹ç«¯å‘é€æ•°æ®,ä½†æ˜¯ä¸€æ—¦å‘å½¼æ–¹å‘é€äº†fin
+		ç«‹å³è¿›å…¥lask_ackçŠ¶æ€ */
 		tcp_queue_fin(sk);
 		tcp_set_state(sk, TCP_LAST_ACK);
 		break;
@@ -286,7 +286,7 @@ int
 tcp_recv_notify(struct sock *sk)
 {
 	if (&(sk->recv_wait)) {
-		return wait_wakeup(&sk->recv_wait); /* »½ĞÑµÈ´ıµÄ½ø³Ì */
+		return wait_wakeup(&sk->recv_wait); /* å”¤é†’ç­‰å¾…çš„è¿›ç¨‹ */
 	}
 	return -1;
 }
@@ -303,13 +303,13 @@ tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr)
 	int rc = 0;
 
 	sk->dport = ntohs(dport);
-	sk->sport = tcp_generate_port();			  /* Î±Ëæ»ú²úÉúÒ»¸ö¶Ë¿Ú */
+	sk->sport = tcp_generate_port();			  /* ä¼ªéšæœºäº§ç”Ÿä¸€ä¸ªç«¯å£ */
 	sk->daddr = ntohl(daddr);
-	sk->saddr = ip_parse(stackaddr);			  /* skÖĞ´æ´¢µÄÊÇÖ÷»ú×Ö½ÚĞò */
+	sk->saddr = ip_parse(stackaddr);			  /* skä¸­å­˜å‚¨çš„æ˜¯ä¸»æœºå­—èŠ‚åº */
 	tcp_connecting_or_listening_socks_enqueue(sk);
-	tcp_begin_connect(sk);					  /* Ê×ÏÈÏò¶Ô·½·¢ËÍack */
+	tcp_begin_connect(sk);					  /* é¦–å…ˆå‘å¯¹æ–¹å‘é€ack */
 
-	/* ½ÓÏÂÀ´ĞèÒªµÈ´ıÁ¬½ÓµÄ³É¹¦½¨Á¢ */
+	/* æ¥ä¸‹æ¥éœ€è¦ç­‰å¾…è¿æ¥çš„æˆåŠŸå»ºç«‹ */
 	wait_sleep(&tsk->wait);
 	tcp_connecting_or_listening_socks_remove(sk);
 	tcp_established_or_syn_recvd_socks_enqueue(sk);
@@ -323,16 +323,16 @@ static struct sock*
 tcp_accept(struct sock* sk)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
-	struct tcp_sock *newtsk = NULL;	/* ÆÚ´ı¹¹½¨Ò»¸öĞÂµÄÁ¬½Ó */
+	struct tcp_sock *newtsk = NULL;	/* æœŸå¾…æ„å»ºä¸€ä¸ªæ–°çš„è¿æ¥ */
 
 	while (list_empty(&tsk->accept_queue)) {
-		if (wait_sleep(&tsk->wait) < 0) goto out;	/* µÈ´ı±»»½ĞÑ */
+		if (wait_sleep(&tsk->wait) < 0) goto out;	/* ç­‰å¾…è¢«å”¤é†’ */
 	}
 
 	newtsk = tcp_accept_dequeue(tsk);
 
 
-	/* Á¬½Ó½¨Á¢³É¹¦, ÕâÀï²»ÓÃÔÙ´Î¼ÓÈë,ÒòÎª»½ĞÑµÄÊ±ºònewskÒÑ¾­ÔÚ¶ÓÁĞÖĞÁË. */
+	/* è¿æ¥å»ºç«‹æˆåŠŸ, è¿™é‡Œä¸ç”¨å†æ¬¡åŠ å…¥,å› ä¸ºå”¤é†’çš„æ—¶å€™newskå·²ç»åœ¨é˜Ÿåˆ—ä¸­äº†. */
 out:
 	return newtsk ? &newtsk->sk : NULL;
 }
@@ -340,7 +340,7 @@ out:
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /**\
- * tcp_lookup_established_or_syn_recvd_sock ÓÃÓÚËÑÑ°Ïà¹ØµÄsock.
+ * tcp_lookup_established_or_syn_recvd_sock ç”¨äºæœå¯»ç›¸å…³çš„sock.
 \**/
 static struct sock*
 tcp_lookup_establised_or_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
@@ -362,7 +362,7 @@ tcp_lookup_establised_or_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t d
 
 
 /**\
- * tcp_lookup_connecting_or_listening_sock ÓÃÓÚËÑÑ°ÕıÔÚ¼àÌıµÄsock.
+ * tcp_lookup_connecting_or_listening_sock ç”¨äºæœå¯»æ­£åœ¨ç›‘å¬çš„sock.
 \**/
 static struct sock *
 	tcp_lookup_connecting_or_listening_sock(uint32_t src, uint16_t sport)
@@ -382,7 +382,7 @@ static struct sock *
 }
 
 /**\
- * tcp_connection_exist ÓÃÓÚÅĞ¶ÏÁ¬½ÓÊÇ·ñÒÑ¾­´æÔÚ,Ö÷ÒªÊÇ±ÜÃâÊÔÍ¼¶à´ÎÁ¬½Ó.
+ * tcp_connection_exist ç”¨äºåˆ¤æ–­è¿æ¥æ˜¯å¦å·²ç»å­˜åœ¨,ä¸»è¦æ˜¯é¿å…è¯•å›¾å¤šæ¬¡è¿æ¥.
 \**/
 static int
 tcp_connection_exist(uint32_t dst, uint16_t dport)
@@ -398,7 +398,7 @@ tcp_connection_exist(uint32_t dst, uint16_t dport)
 }
 
 /**\
- * tcp_lookup_sock¸ù¾İ¸ø³öµÄËÄÔª×éÑ°ÕÒ¶ÔÓ¦µÄsock.
+ * tcp_lookup_sockæ ¹æ®ç»™å‡ºçš„å››å…ƒç»„å¯»æ‰¾å¯¹åº”çš„sock.
 \**/
 struct sock *
 	tcp_lookup_sock(uint32_t src, uint16_t sport, uint32_t dst, uint16_t dport)
@@ -412,17 +412,17 @@ struct sock *
 static int
 tcp_listen(struct sock *sk, int backlog)
 {
-	/* ÔÚÕâÀïbacklogÊ§Ğ§ */
+	/* åœ¨è¿™é‡Œbacklogå¤±æ•ˆ */
 	struct tcp_sock *tsk = tcp_sk(sk);
 	struct tcb *tcb = &tsk->tcb;
 
-	/* ½ÓÏÂÀ´ĞèÒª½øĞĞÒ»ÏµÁĞµÄ¼ì²é */
-	if (!sk->sport) return -1;		/* Ã»ÓĞ°ó¶¨ºÃ¶Ë¿Ú */
+	/* æ¥ä¸‹æ¥éœ€è¦è¿›è¡Œä¸€ç³»åˆ—çš„æ£€æŸ¥ */
+	if (!sk->sport) return -1;		/* æ²¡æœ‰ç»‘å®šå¥½ç«¯å£ */
 	if (sk->state != TCP_CLOSE && sk->state != TCP_LISTEN)
 		return -1;
 
-	sk->state = TCP_LISTEN;		/* ½øÈë¼àÌı×´Ì¬ */
-	/* ½ÓÏÂÀ´ĞèÒª½«sk¼ÓÈë¼àÌı¶ÓÁĞ */
+	sk->state = TCP_LISTEN;		/* è¿›å…¥ç›‘å¬çŠ¶æ€ */
+	/* æ¥ä¸‹æ¥éœ€è¦å°†skåŠ å…¥ç›‘å¬é˜Ÿåˆ— */
 	tcp_connecting_or_listening_socks_enqueue(sk);
 	return 0;
 }

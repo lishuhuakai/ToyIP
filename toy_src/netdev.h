@@ -15,10 +15,10 @@ struct eth_hdr;
 struct sk_buff;
 
 struct netdev {
-	uint32_t addr;			/* ipµØÖ·,Ö÷»ú×Ö½ÚĞò */
+	uint32_t addr;			/* ipåœ°å€,ä¸»æœºå­—èŠ‚åº */
 	uint8_t addr_len;		
-	uint8_t hwaddr[6];		/* macµØÖ·,6¸ö×Ö½Ú */
-	uint32_t mtu;			/* mtu,×î´ó´«Êäµ¥Ôª,Ò»°ãÄ¬ÈÏÎª1500×Ö½Ú */
+	uint8_t hwaddr[6];		/* macåœ°å€,6ä¸ªå­—èŠ‚ */
+	uint32_t mtu;			/* mtu,æœ€å¤§ä¼ è¾“å•å…ƒ,ä¸€èˆ¬é»˜è®¤ä¸º1500å­—èŠ‚ */
 };
 
 void netdev_init();

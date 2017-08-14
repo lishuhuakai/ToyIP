@@ -16,7 +16,7 @@
 #define udpdbg(x)
 #endif
 
-/* udpĞ­ÒéÊµ¼ÊÉÏ²¢Ã»ÓĞ×´Ì¬,ÕâĞ©Ö»ÊÇÎªÁË´¦Àí·½±ã¶øÉè¶¨µÄÎ±×´Ì¬ */
+/* udpåè®®å®é™…ä¸Šå¹¶æ²¡æœ‰çŠ¶æ€,è¿™äº›åªæ˜¯ä¸ºäº†å¤„ç†æ–¹ä¾¿è€Œè®¾å®šçš„ä¼ªçŠ¶æ€ */
 enum udp_state {
 	UDP_UNCONNECTED,
 	UDP_CONNECTED,
@@ -24,10 +24,10 @@ enum udp_state {
 };
 
 struct udphdr {
-	uint16_t sport;		/* Ô´¶Ë¿Ú				*/
-	uint16_t dport;		/* Ä¿µÄ¶Ë¿Ú			*/
-	uint16_t len;		/* ³¤¶È,°üÀ¨Ê×²¿ºÍÊı¾İ */
-	uint16_t csum;		/* ¼ìÑéºÍ				*/
+	uint16_t sport;		/* æºç«¯å£				*/
+	uint16_t dport;		/* ç›®çš„ç«¯å£			*/
+	uint16_t len;		/* é•¿åº¦,åŒ…æ‹¬é¦–éƒ¨å’Œæ•°æ® */
+	uint16_t csum;		/* æ£€éªŒå’Œ				*/
 	uint8_t data[];
 } __attribute__((packed));
 
@@ -47,20 +47,20 @@ udp_hdr(const struct sk_buff *skb)
 	return (struct udphdr *)(skb->head + ETH_HDR_LEN + IP_HDR_LEN);
 }
 
-/* ºÍTCPÏà±È,UDPÒª¼òµ¥ºÜ¶à,ÒòÎªËüÃ»ÓĞ×´Ì¬ */
+/* å’ŒTCPç›¸æ¯”,UDPè¦ç®€å•å¾ˆå¤š,å› ä¸ºå®ƒæ²¡æœ‰çŠ¶æ€ */
 void udp_in(struct sk_buff *skb);
 void udp_init(void);
 struct sock * udp_alloc_sock();
 struct sk_buff* udp_alloc_skb(int size);
 int udp_sock_init(struct sock *sk);
-int udp_write(struct sock *sk, const void *buf, int len);
-int udp_read(struct sock *sk, void *buf, int len);
-int udp_send(struct sock *sk, const void *buf, int len);
+int udp_write(struct sock *sk, const void *buf, const uint len);
+int udp_read(struct sock *sk, void *buf, const uint len);
+int udp_send(struct sock *sk, const void *buf, const uint len);
 int udp_connect(struct sock *sk, const struct sockaddr_in *addr);
-int udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in *skaddr);
-int udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
+int udp_sendto(struct sock *sk, const void *buf, const uint size, const struct sockaddr_in *skaddr);
+int udp_recvfrom(struct sock *sk, void *buf, const uint len, struct sockaddr_in *saddr);
 int udp_close(struct sock *sk);
-int udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen, struct sockaddr_in *saddr);
+int udp_data_dequeue(struct udp_sock *usk, void *user_buf, const uint userlen, struct sockaddr_in *saddr);
 uint16_t udp_generate_port();
 
 struct sock * udp_lookup_sock(uint16_t dport);

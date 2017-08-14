@@ -12,11 +12,11 @@
 
 struct timer {
 	struct list_head list;
-	int refcnt;					/* ÒıÓÃ¼ÆÊı */
-	uint32_t	expires;		/* ¹ıÆÚÊ±¼ä */
-	int cancelled;				/* ÊÇ·ñĞèÒªÈ¡Ïû */
-	void (*handler)(uint32_t, void *); /* ´¦Àíº¯Êı */
-	void *arg;						   /* µ÷ÓÃ²ÎÊı */
+	int refcnt;					/* å¼•ç”¨è®¡æ•° */
+	uint32_t	expires;		/* è¿‡æœŸæ—¶é—´ */
+	int cancelled;				/* æ˜¯å¦éœ€è¦å–æ¶ˆ */
+	void (*handler)(uint32_t, void *); /* å¤„ç†å‡½æ•° */
+	void *arg;						   /* è°ƒç”¨å‚æ•° */
 };
 
 struct timer *timer_add(uint32_t expire, void(*handler)(uint32_t, void*), void *arg);

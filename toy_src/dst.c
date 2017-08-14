@@ -15,11 +15,11 @@ dst_neigh_output(struct sk_buff *skb)
 	uint8_t *dmac;
 
 	if (rt->flags & RT_GATEWAY) {
-		daddr = rt->gateway;	  /*  需要发送到网关 */
+		daddr = rt->gateway;	  /*  闇�瑕佸彂閫佸埌缃戝叧 */
 	}
 
 try_agin:
-	dmac = arp_get_hwaddr(daddr); /* 根据ip地址获得mac地址 */
+	dmac = arp_get_hwaddr(daddr); /* 鏍规嵁ip鍦板潃鑾峰緱mac鍦板潃 */
 
 	if (dmac) {
 		return netdev_transmit(skb, dmac, ETH_P_IP);

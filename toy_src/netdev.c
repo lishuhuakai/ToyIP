@@ -9,17 +9,17 @@
 #include "arp.h"
 
 struct netdev *loop;
-struct netdev *netdev;
+struct netdev *netdev; /* ç”¨äºè®°å½•æœ¬æœºåœ°å€,åŒ…æ‹¬ipå’Œmacåœ°å€ */
 extern int running;
 
 //
-// addr±íÊ¾ipµØÖ·, hwadddr±íÊ¾macµØÖ·, mtu±íÊ¾×î´ó´«Êäµ¥ÔªµÄ´óĞ¡
+// addrè¡¨ç¤ºipåœ°å€, hwadddrè¡¨ç¤ºmacåœ°å€, mtuè¡¨ç¤ºæœ€å¤§ä¼ è¾“å•å…ƒçš„å¤§å°
 static struct netdev *
 netdev_alloc(char *addr, char* hwaddr, uint32_t mtu)
 {
-	/* hwaddr±íÊ¾Ó²¼şµØÖ· */
+	/* hwaddrè¡¨ç¤ºç¡¬ä»¶åœ°å€ */
 	struct netdev *dev = malloc(sizeof(struct netdev));
-	dev->addr = ip_parse(addr);		/* ¼ÇÂ¼ÏÂipµØÖ· */
+	dev->addr = ip_parse(addr);		/* è®°å½•ä¸‹ipåœ°å€ */
 
 	sscanf(hwaddr, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 		&dev->hwaddr[0],
@@ -27,10 +27,10 @@ netdev_alloc(char *addr, char* hwaddr, uint32_t mtu)
 		&dev->hwaddr[2],
 		&dev->hwaddr[3],
 		&dev->hwaddr[4],
-		&dev->hwaddr[5]);				/* ¼ÇÂ¼ÏÂmacµØÖ· */
+		&dev->hwaddr[5]);				/* è®°å½•ä¸‹macåœ°å€ */
 
-	dev->addr_len = 6;					/* µØÖ·³¤¶È */
-	dev->mtu = mtu;						/* ×î´ó´«Êäµ¥Ôª */
+	dev->addr_len = 6;					/* åœ°å€é•¿åº¦ */
+	dev->mtu = mtu;						/* æœ€å¤§ä¼ è¾“å•å…ƒ */
 	return dev;
 }
 
@@ -38,12 +38,15 @@ netdev_alloc(char *addr, char* hwaddr, uint32_t mtu)
 void 
 netdev_init()
 {
+	/* æœ¬åœ°ç¯å›åœ°å€ */
 	loop = netdev_alloc("127.0.0.1", "00:00:00:00:00:00", 1500);
-	/* ÏÂÃæµÄmacµØÖ·ÊÇÄóÔìµÄ. */
+	/* ä¸‹é¢çš„macåœ°å€æ˜¯æé€ çš„. */
 	netdev = netdev_alloc("10.0.1.4", "00:0c:29:6d:50:25", 1500);
 }
 
-/* netdev_transmit ÓÃÓÚ¶ÔÉÏ²ã´«µİ¹ıÀ´µÄÊı¾İ°ü×°ÒÔÌ«ÍøÍ·²¿ */
+/**\
+ * netdev_transmit ç”¨äºå¯¹ä¸Šå±‚ä¼ é€’è¿‡æ¥çš„æ•°æ®åŒ…è£…ä»¥å¤ªç½‘å¤´éƒ¨(æ•°æ®é“¾è·¯å±‚)
+\**/
 int 
 netdev_transmit(struct sk_buff *skb, uint8_t *dst_hw, uint16_t ethertype)
 {
@@ -55,24 +58,24 @@ netdev_transmit(struct sk_buff *skb, uint8_t *dst_hw, uint16_t ethertype)
 	skb_push(skb, ETH_HDR_LEN);
 	hdr = (struct eth_hdr *)skb->data;
 
-	/* ¿½±´Ó²¼şµØÖ· */
-	memcpy(hdr->dmac, dst_hw, dev->addr_len);
-	memcpy(hdr->smac, dev->hwaddr, dev->addr_len);
+	/* æ‹·è´ç¡¬ä»¶åœ°å€ */
+	memcpy(hdr->dmac, dst_hw, dev->addr_len); /* å¯¹ç«¯çš„macåœ°å€ */
+	memcpy(hdr->smac, dev->hwaddr, dev->addr_len); /* æœ¬ç«¯çš„macåœ°å€ */
 	
 	eth_dbg("out", hdr);
-	hdr->ethertype = htons(ethertype);
-	/* »Ø¸´,Ö±½ÓĞ´¼´¿É */
+	hdr->ethertype = htons(ethertype);	/* å¸§ç±»å‹ */
+	/* å›å¤,ç›´æ¥å†™å³å¯ */
 	ret = tun_write((char *)skb->data, skb->len);
 }
 
 static int 
 netdev_receive(struct sk_buff *skb)
 {
-	struct eth_hdr *hdr = eth_hdr(skb);  /* »ñµÃÒÔÌ«ÍøÍ·²¿ĞÅÏ¢,ÒÔÌ«ÍøÍ·²¿°üÀ¨
-										 Ä¿µÄmacµØÖ·,Ô´macµØÖ·,ÒÔ¼°ÀàĞÍĞÅÏ¢ */
+	struct eth_hdr *hdr = eth_hdr(skb);  /* è·å¾—ä»¥å¤ªç½‘å¤´éƒ¨ä¿¡æ¯,ä»¥å¤ªç½‘å¤´éƒ¨åŒ…æ‹¬
+										 ç›®çš„macåœ°å€,æºmacåœ°å€,ä»¥åŠç±»å‹ä¿¡æ¯ */
 	eth_dbg("in", hdr);
-	/* ÒÔÌ«ÍøÍ·²¿µÄType(ÀàĞÍ)×Ö¶Î 0x86dd±íÊ¾IPv6 0x0800±íÊ¾IPv4
-	0x0806±íÊ¾ARP */
+	/* ä»¥å¤ªç½‘å¤´éƒ¨çš„Type(ç±»å‹)å­—æ®µ 0x86ddè¡¨ç¤ºIPv6 0x0800è¡¨ç¤ºIPv4
+	0x0806è¡¨ç¤ºARP */
 	switch (hdr->ethertype) {
 	case ETH_P_ARP:	/* ARP  0x0806 */
 		arp_rcv(skb);
@@ -95,8 +98,8 @@ netdev_rx_loop()
 {
 	while (running) {
 		struct sk_buff *skb = alloc_skb(BUFLEN);		/* 1600 */
-		/* skbÊÇ¶ÔÊı¾İµÄÒ»¸ö¼òµ¥·â×°,ÕæÕıµÄÊı¾İÔÚskb->dataÖĞ,skbµÄÆäËûÓòÊÇ¶ÔÊı¾İµÄÒ»Ğ©ÃèÊö */
-		/* tun_readÃ¿Ò»´Î»á¶ÁÈ¡Ò»¸öÊı¾İ±¨,¼´Ê¹¸ÃÊı¾İ³¤¶È´ï²»µ½1600 */
+		/* skbæ˜¯å¯¹æ•°æ®çš„ä¸€ä¸ªç®€å•å°è£…,çœŸæ­£çš„æ•°æ®åœ¨skb->dataä¸­,skbçš„å…¶ä»–åŸŸæ˜¯å¯¹æ•°æ®çš„ä¸€äº›æè¿° */
+		/* tun_readæ¯ä¸€æ¬¡ä¼šè¯»å–ä¸€ä¸ªæ•°æ®æŠ¥,å³ä½¿è¯¥æ•°æ®é•¿åº¦è¾¾ä¸åˆ°1600 */
 		int len = tun_read((char *)skb->data, BUFLEN);  
 		if (len < 0) {									
 			perror("ERR: Read from tun_fd");
@@ -112,7 +115,7 @@ struct netdev*
 netdev_get(uint32_t sip)
 {
 	if (netdev->addr == sip) {
-		return netdev; /* ½«static local variableµÄµØÖ·´«µİ³öÈ¥, netdev°üº¬macµØÖ·ĞÅÏ¢ */
+		return netdev; /* å°†static local variableçš„åœ°å€ä¼ é€’å‡ºå», netdevåŒ…å«macåœ°å€ä¿¡æ¯ */
 	}
 	else
 	{
@@ -128,16 +131,16 @@ free_netdev()
 }
 
 /**\
- * local_ipaddressÓÃÓÚÅĞ¶ÏaddrÊÇ·ñÎª±¾»úµØÖ·.
+ * local_ipaddressç”¨äºåˆ¤æ–­addræ˜¯å¦ä¸ºæœ¬æœºåœ°å€.
 \**/
 int
 local_ipaddress(uint32_t addr)
 {
-	/* ´«ÈëµÄaddrÊÇ±¾»ú×Ö½ÚĞò±íÊ¾µÄipµØÖ· */
+	/* ä¼ å…¥çš„addræ˜¯æœ¬æœºå­—èŠ‚åºè¡¨ç¤ºçš„ipåœ°å€ */
 	struct netdev *dev;
 	if (!addr) /* INADDR_ANY */
 		return 1;
-	/* netdevµÄaddrÓò¼ÇÂ¼µÄÊÇ±¾»ú×Ö½ÚĞòµÄipµØÖ· */
+	/* netdevçš„addråŸŸè®°å½•çš„æ˜¯æœ¬æœºå­—èŠ‚åºçš„ipåœ°å€ */
 	if (addr == netdev->addr) return 1;
 	if (addr == loop->addr) return 1;
 	return 0;

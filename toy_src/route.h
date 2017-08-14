@@ -12,11 +12,11 @@
 struct rtentry {
 	struct list_head list;
 	uint32_t dst;
-	uint32_t gateway;		// ����
-	uint32_t netmask;		// ��������
+	uint32_t gateway;		/* 网关 */
+	uint32_t netmask;		/* 子网掩码 */
 	uint8_t flags;
-	uint32_t metric;
-	struct netdev *dev;
+	uint32_t metric;		/* 在本应用中基本没有什么用处 */
+	struct netdev *dev;     /* dev主要记录网关的地址信息,包括ip地址和mac地址 */
 };
 
 void route_init();

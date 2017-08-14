@@ -24,4 +24,7 @@
 #include <sys/un.h>
 #include <poll.h>
 
+typedef unsigned int uint;
+typedef unsigned char uchar;
+
 #endif

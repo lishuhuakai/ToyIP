@@ -5,23 +5,23 @@
 #include "udp.h"
 #include "icmpv4.h"
 //
-// ip_input.c ��Ҫ���ڽ���ip���ݰ�.
+// ip_input.c 主要用于接收ip数据包.
 // 
 
-// ip_init_pkt���ڽ��յ���ip���ݱ�����һ���̶ȵĽ���,Ҳ���ǽ������ֽ���ת��Ϊ�����ֽ���
-// �������Ĳ���.
+// ip_init_pkt对于接收到的ip数据报进行一定程度的解码,也就是将网络字节序转换为主机字节序
+// 方便后面的操作.
 static void
 ip_init_pkt(struct iphdr *ih)
 {
-	ih->saddr = ntohl(ih->saddr);	/* Դip��ַ */
-	ih->daddr = ntohl(ih->daddr);	/* Ŀ��ip��ַ */
-	ih->len = ntohs(ih->len);		/* 16λ�ܳ��� */
-	ih->id = ntohs(ih->id);			/* Ψһ�ı�ʶ */
+	ih->saddr = ntohl(ih->saddr);	/* 源ip地址 */
+	ih->daddr = ntohl(ih->daddr);	/* 目的ip地址 */
+	ih->len = ntohs(ih->len);		/* 16位总长度 */
+	ih->id = ntohs(ih->id);			/* 唯一的标识 */
 }
 
 
 /**\
- * ip_pkt_for_us �ж����ݰ��Ƿ��Ǵ��ݸ����ǵ�.
+ * ip_pkt_for_us 判断数据包是否是传递给我们的.
 \**/
 static int
 ip_pkt_for_us(struct iphdr *ih)
@@ -30,6 +30,9 @@ ip_pkt_for_us(struct iphdr *ih)
 	return ih->daddr == ip_parse(stackaddr) ? 1 : 0;
 }
 
+/**\
+ * ip_rcv 处理接收到的ip数据报
+\**/
 int
 ip_rcv(struct sk_buff *skb)
 {
@@ -43,7 +46,7 @@ ip_rcv(struct sk_buff *skb)
 	}
 
 	if (ih->ihl < 5) {
-		// 5 * 32bit = 20�ֽ�
+		// 5 * 32bit = 20字节
         print_err("IPv4 header length must be at least 5\n");
 		goto drop_pkt;
 	}
@@ -56,15 +59,15 @@ ip_rcv(struct sk_buff *skb)
 	csum = checksum(ih, ih->ihl * 4, 0);
 
 	if (csum != 0) {
-		/* ��Ч�����ݱ� */
+		/* 无效的数据报 */
 		goto drop_pkt;
 	}
 
 	/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	  todo: ip���ݱ�����
-	  ipЭ�鲢����һ���ɿ���Э��,��û��tcpЭ����ش���ȷ�ϻ���.
-	  ���ϲ�Ӧ�����ݱ�����,������MTU,��ô��ip���Ҫ���в��,��
-	  �����ݲ�ֳ�С���ݷ��ͳ�ȥ,�Է����յ�֮��ҲҪ�������.
+	  todo: ip数据报重组
+	  ip协议并不是一个可靠的协议,它没有tcp协议的重传和确认机制.
+	  当上层应用数据报过大,超过了MTU,那么在ip层就要进行拆包,将
+	  大数据拆分成小数据发送出去,对方接收到之后也要进行组包.
 	 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 	ip_init_pkt(ih);

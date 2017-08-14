@@ -8,7 +8,7 @@
 #include "udp.h"
 
 //
-// inet ¸ü¶àÖ¸µÄÊÇtcp socket.
+// inet æ›´å¤šæŒ‡çš„æ˜¯tcp socket.
 // 
 extern struct net_ops tcp_ops;
 extern struct net_ops udp_ops;
@@ -45,14 +45,14 @@ static struct sock_type inet_ops[] = {
 };
 
 /**\
- * inet_createÖ÷ÒªÓÃÓÚ¸østruct socket *sock¹¹½¨ºÍ³õÊ¼»¯struct sock *sk. 
+ * inet_createä¸»è¦ç”¨äºç»™struct socket *sockæ„å»ºå’Œåˆå§‹åŒ–struct sock *sk. 
 \**/
 int
 inet_create(struct socket *sock, int protocol) 
 {
 	struct sock *sk;
 	struct sock_type *skt = NULL;
-	/* ÕâÀïÖ»Ö§³Öudp»òÕßtcp */
+	/* è¿™é‡Œåªæ”¯æŒudpæˆ–è€…tcp */
 	for (int i = 0; i < INET_OPS; i++) {
 		if (inet_ops[i].type & sock->type) {
 			skt = &inet_ops[i];
@@ -65,14 +65,14 @@ inet_create(struct socket *sock, int protocol)
 		return 1;
 	}
 
-	sock->ops = skt->sock_ops;	/* ¼ÇÂ¼ÏÂ¶Ôstruct socketµÄ²Ù×İ·½·¨,ÔÚÕâ¸öĞ­ÒéÕ»ÄÚ,
-								sock->ops == &sock_opsÊ¼ÖÕ³ÉÁ¢ */
-	sk = sk_alloc(skt->net_ops, protocol);	/* ¹¹½¨sock */
+	sock->ops = skt->sock_ops;	/* è®°å½•ä¸‹å¯¹struct socketçš„æ“çºµæ–¹æ³•,åœ¨è¿™ä¸ªåè®®æ ˆå†…,
+								sock->ops == &sock_opså§‹ç»ˆæˆç«‹ */
+	sk = sk_alloc(skt->net_ops, protocol);	/* æ„å»ºsock */
 	
 	
 	sk->protocol = protocol;
 
-	sk_init_with_socket(sock, sk);	/* ¶ÔsockµÄÆäËûÓò×öÒ»Ğ©³õÊ¼»¯¹¤×÷. */
+	sk_init_with_socket(sock, sk);	/* å¯¹sockçš„å…¶ä»–åŸŸåšä¸€äº›åˆå§‹åŒ–å·¥ä½œ. */
 	return 0;
 }
 
@@ -87,7 +87,7 @@ inet_connect(struct socket *sock, const struct sockaddr_in *addr)
 { 
 	struct sock *sk = sock->sk;
 	int rc = -1;
-	/* ²»ÔÊĞí¶à´ÎÁ¬½Ó */
+	/* ä¸å…è®¸å¤šæ¬¡è¿æ¥ */
 	if (sk->sport) goto out;
 	if (sk->ops->connect)
 		rc = sk->ops->connect(sk, addr);
@@ -96,7 +96,7 @@ out:
 }
 
 /*
- * ½ÓÏÂÀ´µÄinet_write, inet_readµÈº¯ÊıÖ±½Óµ÷ÓÃsockµÄwrite, readº¯Êı.
+ * æ¥ä¸‹æ¥çš„inet_write, inet_readç­‰å‡½æ•°ç›´æ¥è°ƒç”¨sockçš„write, readå‡½æ•°.
  */
 
 int
@@ -120,7 +120,7 @@ inet_close(struct socket *sock)
 	int err = 0;
 
 	pthread_mutex_lock(&sk->lock);
-	if (sock->sk->ops->close(sk) != 0) {	/* Ê×ÏÈ¹Ø±ÕÁ¬½Ó */
+	if (sock->sk->ops->close(sk) != 0) {	/* é¦–å…ˆå…³é—­è¿æ¥ */
 		print_err("Error on sock op close\n");
 	}
 
@@ -141,14 +141,14 @@ inet_free(struct socket *sock)
 int
 inet_bind(struct socket *sock, struct sockaddr_in * skaddr)
 {
-	struct sock *sk = sock->sk;	/* struct sock±íÊ¾Ò»¸öÁ¬½Ó */
+	struct sock *sk = sock->sk;	/* struct sockè¡¨ç¤ºä¸€ä¸ªè¿æ¥ */
 	int err = -1;
 	uint32_t bindaddr;
 	uint16_t bindport;
 	
-	/* Èç¹ûÒÑ¾­°ó¶¨¹ıÁË,²»ÄÜÔÙ´Î°ó¶¨ */
+	/* å¦‚æœå·²ç»ç»‘å®šè¿‡äº†,ä¸èƒ½å†æ¬¡ç»‘å®š */
 	if (sk->sport) goto err_out;
-	/* ½ÓÏÂÀ´ĞèÒª¼ì²éskadddrÖĞµÄµØÖ·ÊÇ²»ÊÇ±¾»úµØÖ· */
+	/* æ¥ä¸‹æ¥éœ€è¦æ£€æŸ¥skadddrä¸­çš„åœ°å€æ˜¯ä¸æ˜¯æœ¬æœºåœ°å€ */
 	bindaddr = ntohl(skaddr->sin_addr.s_addr);
 	bindport = ntohs(skaddr->sin_port);
 	if (!local_ipaddress(bindaddr)) goto err_out;
@@ -160,7 +160,7 @@ inet_bind(struct socket *sock, struct sockaddr_in * skaddr)
 
 	if (sk->ops->set_sport) {
 		if ((err = sk->ops->set_sport(sk, bindport)) < 0) {
-			/* Éè¶¨¶Ë¿Ú³ö´í,¿ÉÄÜÊÇ¶Ë¿ÚÒÑ¾­±»Õ¼ÓÃ */
+			/* è®¾å®šç«¯å£å‡ºé”™,å¯èƒ½æ˜¯ç«¯å£å·²ç»è¢«å ç”¨ */
 			sk->saddr = 0;
 			goto err_out;
 		}
@@ -168,7 +168,7 @@ inet_bind(struct socket *sock, struct sockaddr_in * skaddr)
 	else {
 		sk->sport = bindport;
 	}
-	/* °ó¶¨³É¹¦ */
+	/* ç»‘å®šæˆåŠŸ */
 	err = 0;
 	sk->dport = 0;
 	sk->daddr = 0;
@@ -190,7 +190,7 @@ inet_listen(struct socket *sock, int backlog)
 }
 
 /**\
- * inet_acceptº¯ÊıÓÃÓÚ¼àÌı¶Ô¶Ë·¢ËÍ¹ıÀ´µÄÁ¬½Ó.
+ * inet_acceptå‡½æ•°ç”¨äºç›‘å¬å¯¹ç«¯å‘é€è¿‡æ¥çš„è¿æ¥.
 \**/
 int
 inet_accept(struct socket *sock, struct socket *newsock, 
@@ -200,17 +200,17 @@ inet_accept(struct socket *sock, struct socket *newsock,
 	struct sock *newsk;
 	int err = -1;
 
-	/* ±ØĞë°ó¶¨ÔÚÄ³¸ö¶Ë¿ÚÉÏ */
+	/* å¿…é¡»ç»‘å®šåœ¨æŸä¸ªç«¯å£ä¸Š */
 	if (!sk || !sk->sport) goto out;
 
 	newsk = sk->ops->accept(sk);
 	if (newsk) {
-		/* ½«¶Ô·½µÄµØÖ·ĞÅÏ¢¼ÇÂ¼ÏÂÀ´ */
+		/* å°†å¯¹æ–¹çš„åœ°å€ä¿¡æ¯è®°å½•ä¸‹æ¥ */
 		if (skaddr) {
 			skaddr->sin_addr.s_addr = htonl(newsk->daddr);
 			skaddr->sin_port = htons(newsk->dport);
 		}
-		sk_init_with_socket(newsock, newsk);	/* ¶Ôstruct sock²¿·Ö×ö³õÊ¼»¯¹¤×÷ */
+		sk_init_with_socket(newsock, newsk);	/* å¯¹struct sockéƒ¨åˆ†åšåˆå§‹åŒ–å·¥ä½œ */
 		err = 0;
 	}
 out:

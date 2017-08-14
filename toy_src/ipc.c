@@ -6,7 +6,7 @@
 
 #define IPC_BUFLEN 4096
 
-static LIST_HEAD(connections);	/* connectionsÊÇÓÉstruct ipc_thread¹¹³ÉµÄÁ´ */
+static LIST_HEAD(connections);	/* connectionsæ˜¯ç”±struct ipc_threadæ„æˆçš„é“¾ */
 static pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
 static int conn_count = 0;
 
@@ -14,7 +14,7 @@ static inline void
 ipc_connections_enqueue(struct ipc_thread* th)
 {
 	pthread_rwlock_wrlock(&lock);
-	list_add_tail(&th->list, &connections); /* ½«th->list¼ÓÈëµ½connectionsµÄÎ²²¿ */
+	list_add_tail(&th->list, &connections); /* å°†th->liståŠ å…¥åˆ°connectionsçš„å°¾éƒ¨ */
 	conn_count++;
 	pthread_rwlock_unlock(&lock);
 }
@@ -33,7 +33,7 @@ ipc_alloc_thread(int sock)
 {
 	struct ipc_thread *th = calloc(sizeof(struct ipc_thread), 1);
 	list_init(&th->list);
-	th->sock = sock;		/* sock½ö½öÖ»ÊÇÒ»¸ö±ê¼Ç */
+	th->sock = sock;		/* sockä»…ä»…åªæ˜¯ä¸€ä¸ªæ ‡è®° */
 	
 	ipc_connections_enqueue(th);
 	
@@ -51,7 +51,7 @@ ipc_free_thread(int sock)
 	list_for_each_safe(item, tmp, &connections) {
 		th = list_entry(item, struct ipc_thread, list);
 
-		if (th->sock == sock) {		/* sockÀàËÆÓÚÎÄ¼şÃèÊö·û */
+		if (th->sock == sock) {		/* sockç±»ä¼¼äºæ–‡ä»¶æè¿°ç¬¦ */
 			ipc_connections_remove(th);
 			ipc_dbg("IPC socket deleted", th);
 			close(th->sock);
@@ -63,20 +63,20 @@ ipc_free_thread(int sock)
 }
 
 /**\
- * ipc_write_rc ÓÃÓÚ¶Ô¸¶ÄÇĞ©Ã»ÓĞÊı¾İÒª·µ»ØµÄº¯Êı.
+ * ipc_write_rc ç”¨äºå¯¹ä»˜é‚£äº›æ²¡æœ‰æ•°æ®è¦è¿”å›çš„å‡½æ•°.
 \**/
 static int 
 ipc_write_rc(int sockfd, pid_t pid, uint16_t type, int rc)
 {
 	/*
-	 ·µ»ØµÄÊı¾İÊ¾ÒâÍ¼ÈçÏÂ:
+	 è¿”å›çš„æ•°æ®ç¤ºæ„å›¾å¦‚ä¸‹:
 	 +----------+----------+
 	 | ipc_msg  | ipc_err  |        
 	 +----------+----------+
 	 
 	 */
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err);
-	struct ipc_msg *response = alloca(resplen);	 /* ÔÚÕ»ÉÏ¶¯Ì¬·ÖÅäÄÚ´æ */
+	struct ipc_msg *response = alloca(resplen);	 /* åœ¨æ ˆä¸ŠåŠ¨æ€åˆ†é…å†…å­˜ */
 
 	if (response == NULL) {
 		print_err("Could not allocate memory for IPC write response\n");
@@ -97,9 +97,9 @@ ipc_write_rc(int sockfd, pid_t pid, uint16_t type, int rc)
 		err.rc = rc;
 	}
 
-	memcpy(response->data, &err, sizeof(struct ipc_err));	/* Ö±½Ó¿½±´err */
+	memcpy(response->data, &err, sizeof(struct ipc_err));	/* ç›´æ¥æ‹·è´err */
 
-	if (write(sockfd, (char *)response, resplen) == -1) {	/* ÍùsockÖĞĞ´ÈëÊı¾İ */
+	if (write(sockfd, (char *)response, resplen) == -1) {	/* å¾€sockä¸­å†™å…¥æ•°æ® */
 		perror("Error on writing IPC write response");
 	}
 	return 0;
@@ -108,7 +108,7 @@ ipc_write_rc(int sockfd, pid_t pid, uint16_t type, int rc)
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /**\
- * ipc_readº¯ÊıÓÃÓÚ¶ÁÈ¡Êı¾İ.
+ * ipc_readå‡½æ•°ç”¨äºè¯»å–æ•°æ®.
 \**/
 static int
 ipc_read(int sockfd, struct ipc_msg *msg)
@@ -118,7 +118,7 @@ ipc_read(int sockfd, struct ipc_msg *msg)
 	int rlen = -1;
 	char rbuf[requested->len];
 	memset(rbuf, 0, requested->len);
-	/* pidºÍsockfd¿ÉÒÔÎ¨Ò»È·¶¨Ò»¸ösocket */
+	/* pidå’Œsockfdå¯ä»¥å”¯ä¸€ç¡®å®šä¸€ä¸ªsocket */
 	rlen = _read(pid, requested->sockfd, rbuf, requested->len);
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_read) + rlen;
 	struct ipc_msg *response = alloca(resplen);
@@ -185,7 +185,7 @@ ipc_recvfrom(int sockfd, struct ipc_msg *msg)
 
 	saddr = requested->contain_addr ? &requested->addr: NULL;
 
-	/* pidºÍsockfd¿ÉÒÔÎ¨Ò»È·¶¨Ò»¸ösocket */
+	/* pidå’Œsockfdå¯ä»¥å”¯ä¸€ç¡®å®šä¸€ä¸ªsocket */
 	rlen = _recvfrom(pid, requested->sockfd, rbuf, requested->len, saddr);
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_recvfrom) + rlen;
 	struct ipc_msg *response = alloca(resplen);
@@ -205,7 +205,7 @@ ipc_recvfrom(int sockfd, struct ipc_msg *msg)
 
 	actual->sockfd = requested->sockfd;
 	actual->len = rlen;
-	if (saddr) {	/* ¿½±´¶Ô·½µÄµØÖ·ĞÅÏ¢ */
+	if (saddr) {	/* æ‹·è´å¯¹æ–¹çš„åœ°å€ä¿¡æ¯ */
 		actual->addr = *saddr;
 	}
 	memcpy(actual->buf, rbuf, rlen > 0 ? rlen : 0);
@@ -250,7 +250,7 @@ ipc_connect(int sockfd, struct ipc_msg *msg)
 	pid_t pid = msg->pid;
 	int rc = -1;
 	rc = _connect(pid, payload->sockfd, &payload->addr);
-	return ipc_write_rc(sockfd, pid, IPC_CONNECT, rc); /* ËùÎ½µÄIPC,Ö»ÊÇ×Ô¼º¶¨ÒåµÄÒ»Ì×¹æÔòÂğ? */
+	return ipc_write_rc(sockfd, pid, IPC_CONNECT, rc); /* æ‰€è°“çš„IPC,åªæ˜¯è‡ªå·±å®šä¹‰çš„ä¸€å¥—è§„åˆ™å—? */
 }
 
 static int
@@ -260,11 +260,11 @@ ipc_listen(int sockfd, struct ipc_msg *msg)
 	pid_t pid = msg->pid;
 	int rc = -1;
 	rc = _listen(pid, payload->sockfd, payload->backoff);
-	return ipc_write_rc(sockfd, pid, IPC_LISTEN, rc); /* ËùÎ½µÄIPC,Ö»ÊÇ×Ô¼º¶¨ÒåµÄÒ»Ì×¹æÔòÂğ? */
+	return ipc_write_rc(sockfd, pid, IPC_LISTEN, rc); /* æ‰€è°“çš„IPC,åªæ˜¯è‡ªå·±å®šä¹‰çš„ä¸€å¥—è§„åˆ™å—? */
 }
 
 /**\
- * ipc_bindµ÷ÓÃÏÂ²ãµÄbindº¯Êı,Ä£Äâbindº¯ÊıµÄ¹¦ÄÜ. 
+ * ipc_bindè°ƒç”¨ä¸‹å±‚çš„bindå‡½æ•°,æ¨¡æ‹Ÿbindå‡½æ•°çš„åŠŸèƒ½. 
 \**/
 static int
 ipc_bind(int sockfd, struct ipc_msg *msg)
@@ -285,9 +285,9 @@ ipc_accept(int sockfd, struct ipc_msg *msg)
 	int rc = -1;
 	struct socket *sock;
 	struct sockaddr_in *addr = payload->contain_addr ? alloca(sizeof(struct sockaddr)) : NULL;
-	rc = _accept(pid, payload->sockfd, addr);	/* Èç¹ûrc > 0,ÄÇÃ´rcÊÇ¶ÔÓ¦Á¬½ÓµÄÎÄ¼şÃèÊö·û */
+	rc = _accept(pid, payload->sockfd, addr);	/* å¦‚æœrc > 0,é‚£ä¹ˆrcæ˜¯å¯¹åº”è¿æ¥çš„æ–‡ä»¶æè¿°ç¬¦ */
 
-	/* accceptµÄº¯Êı,ÎÒÃÇ±ØĞëÒª×Ô¼º»Ø¸´. */
+	/* accceptçš„å‡½æ•°,æˆ‘ä»¬å¿…é¡»è¦è‡ªå·±å›å¤. */
 	int resplen = sizeof(struct ipc_msg) + sizeof(struct ipc_err) + sizeof(struct ipc_accept);
 	struct ipc_msg *response = alloca(resplen);
 	struct ipc_err *error = (struct ipc_err *)response->data;
@@ -338,7 +338,7 @@ ipc_close(int sockfd, struct ipc_msg *msg)
 
 
 /**\
- * demux_ipc_socket_call ¸ü¶àµÄÊÇÊµÏÖÏûÏ¢µÄ·Ö·¢.
+ * demux_ipc_socket_call æ›´å¤šçš„æ˜¯å®ç°æ¶ˆæ¯çš„åˆ†å‘.
 \**/
 static int
 demux_ipc_socket_call(int sockfd, char *cmdbuf, int blen)
@@ -381,7 +381,7 @@ socket_ipc_open(void *args) {
 	int rc = -1;
 
 	while ((rc = read(sockfd, buf, blen)) > 0) {
-		rc = demux_ipc_socket_call(sockfd, buf, blen);	/* ·Ö·¢ */
+		rc = demux_ipc_socket_call(sockfd, buf, blen);	/* åˆ†å‘ */
 
 		if (rc == -1) {
 			printf("Error on demuxing IPC socket call\n");
@@ -398,7 +398,7 @@ socket_ipc_open(void *args) {
 }
 
 /**\
- * start_ipc_listenerÓÃÓÚ¼àÌıÀ´×Ô±ğµÄÓ¦ÓÃ·¢ËÍÀ´µÄº¯Êıµ÷ÓÃ.
+ * start_ipc_listenerç”¨äºç›‘å¬æ¥è‡ªåˆ«çš„åº”ç”¨å‘é€æ¥çš„å‡½æ•°è°ƒç”¨.
 \**/
 void *
 start_ipc_listener()
@@ -410,7 +410,7 @@ start_ipc_listener()
 	unlink(sockname);
 
 	if (strnlen(sockname, sizeof(un.sun_path)) == sizeof(un.sun_path)) {
-		/* Â·¾¶¹ı³¤ */
+		/* è·¯å¾„è¿‡é•¿ */
 		print_err("Path for UNIX socket is too long\n");
 		exit(-1);
 	}

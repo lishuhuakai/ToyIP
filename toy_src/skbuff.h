@@ -1,6 +1,7 @@
 #ifndef SKBUFF_H
 #define SKBUFF_H
 
+#include "syshead.h"
 #include "netdev.h"
 #include "route.h"
 #include "list.h"
@@ -12,10 +13,10 @@ struct sk_buff {
 	struct list_head list;
 	struct rtentry *rt;
 	struct netdev *dev;
-	int refcnt;				/* ÒıÓÃ¼ÆÊı */
+	int refcnt;				/* å¼•ç”¨è®¡æ•° */
 	uint16_t protocol;
-	uint32_t len;			/* lenÖ÷Òª¼ÇÂ¼ÒÑ¾­ÌîÈëµÄÊı¾İµÄ´óĞ¡,½ö¹©Êä³öÊ¹ÓÃ */
-	uint32_t dlen;			/* Êı¾İµÄ´óĞ¡,²»°üº¬Í·²¿(ÒÔÌ«Íø,ip,tcpÍ·²¿) */
+	uint32_t len;			/* lenä¸»è¦è®°å½•å·²ç»å¡«å…¥çš„æ•°æ®çš„å¤§å°,ä»…ä¾›è¾“å‡ºä½¿ç”¨ */
+	uint32_t dlen;			/* æ•°æ®çš„å¤§å°,ä¸åŒ…å«å¤´éƒ¨(ä»¥å¤ªç½‘,ip,tcpå¤´éƒ¨) */
 	uint32_t seq;
 	uint32_t end_seq;
 	uint8_t *end;
@@ -26,15 +27,15 @@ struct sk_buff {
 
 struct sk_buff_head {
 	struct list_head head;
-	uint32_t qlen;				/* ¼ÇÂ¼Á´±íµÄ³¤¶È */
-	pthread_mutex_t lock;		/* Ëø,±ÜÃâÕùÓÃ */
+	uint32_t qlen;				/* è®°å½•é“¾è¡¨çš„é•¿åº¦ */
+	pthread_mutex_t lock;		/* é”,é¿å…äº‰ç”¨ */
 };
 
-struct sk_buff *alloc_skb(unsigned int size);
+struct sk_buff *alloc_skb(uint size);
 void free_skb(struct sk_buff *skb);
-uint8_t *skb_push(struct sk_buff *skb, unsigned int len);
+uint8_t *skb_push(struct sk_buff *skb, uint len);
 uint8_t *skb_head(struct sk_buff *skb);
-void *skb_reserve(struct sk_buff *skb, unsigned int len);
+void *skb_reserve(struct sk_buff *skb, uint len);
 void skb_reset_header(struct sk_buff *skb);
 
 static inline uint32_t 
@@ -58,7 +59,7 @@ skb_queue_add(struct sk_buff_head *list, struct sk_buff *new_item, struct sk_buf
 	list->qlen += 1;
 }
 
-/* skb_queue_tail ½«skbÌí¼Óµ½listµÄÎ²²¿ */
+/* skb_queue_tail å°†skbæ·»åŠ åˆ°listçš„å°¾éƒ¨ */
 static inline void
 skb_queue_tail(struct sk_buff_head *list, struct sk_buff *new_item)
 {
@@ -66,7 +67,7 @@ skb_queue_tail(struct sk_buff_head *list, struct sk_buff *new_item)
 	list->qlen += 1;
 }
 
-/* skb_dequeue ÓÃÓÚ¶ªÆú¶ÓÁĞµÄÊ×Ïî */
+/* skb_dequeue ç”¨äºä¸¢å¼ƒé˜Ÿåˆ—çš„é¦–é¡¹ */
 static inline struct sk_buff *
 skb_dequeue(struct sk_buff_head *list)
 {

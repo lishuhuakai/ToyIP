@@ -17,8 +17,8 @@
 
 #define ARP_CACHE_LEN	32
 //
-// ARPÇëÇóµÄ²Ù×÷×Ö¶ÎÒ»¹²ÓĞ4ÖÖ²Ù×÷ÀàĞÍ.ARPÇëÇó(1), ARPÓ¦´ğ(2)
-// RARPÇëÇó(3)ºÍRARPÓ¦´ğ(4),RARPĞ­Òé»ù±¾ÉÏ±»·ÏÆúÁË.
+// ARPè¯·æ±‚çš„æ“ä½œå­—æ®µä¸€å…±æœ‰4ç§æ“ä½œç±»å‹.ARPè¯·æ±‚(1), ARPåº”ç­”(2)
+// RARPè¯·æ±‚(3)å’ŒRARPåº”ç­”(4),RARPåè®®åŸºæœ¬ä¸Šè¢«åºŸå¼ƒäº†.
 // 
 #define ARP_FREE		0			
 #define ARP_WAITING		1
@@ -60,37 +60,37 @@
 #define arpcache_dbg(str, entry)
 #endif
 
-// ARP Í·²¿
+// ARP å¤´éƒ¨
 struct arp_hdr
 {
-	uint16_t hwtype;		// Ó²¼şÀàĞÍ
-	uint16_t protype;		// Ğ­ÒéÀàĞÍ
-	uint8_t hwsize;			// Ó²¼şµØÖ·³¤¶È
-	uint8_t prosize;		// Ğ­ÒéµØÖ·³¤¶È
-	uint16_t opcode;		// ²Ù×÷ÀàĞÍ
-	unsigned char data[];
+	uint16_t hwtype;		// ç¡¬ä»¶ç±»å‹
+	uint16_t protype;		// åè®®ç±»å‹
+	uint8_t hwsize;			// ç¡¬ä»¶åœ°å€é•¿åº¦
+	uint8_t prosize;		// åè®®åœ°å€é•¿åº¦
+	uint16_t opcode;		// æ“ä½œç±»å‹
+	uchar data[];
 } __attribute__((packed));
 
-// ARPÇëÇóºÍÓ¦´ğ·Ö×éµÄÊı¾İ²¿·Ö
+// ARPè¯·æ±‚å’Œåº”ç­”åˆ†ç»„çš„æ•°æ®éƒ¨åˆ†
 struct arp_ipv4
 {
-	unsigned char smac[6];  // ·¢ËÍ¶ËÒÔÌ«ÍøµØÖ·
-	uint32_t sip;			// ·¢ËÍ¶ËipµØÖ·
-	unsigned char dmac[6];  // Ä¿µÄÒÔÌ«ÍøµØÖ·
-	uint32_t dip;			// Ä¿µÄipµØÖ·
+	uchar smac[6];  // å‘é€ç«¯ä»¥å¤ªç½‘åœ°å€
+	uint32_t sip;			// å‘é€ç«¯ipåœ°å€
+	uchar dmac[6];  // ç›®çš„ä»¥å¤ªç½‘åœ°å€
+	uint32_t dip;			// ç›®çš„ipåœ°å€
 } __attribute__((packed));
 
-// arp_cache_entry ÓÃÓÚ±íÊ¾arp»º´æ
+// arp_cache_entry ç”¨äºè¡¨ç¤ºarpç¼“å­˜
 struct arp_cache_entry
 {
 	struct list_head list;
 	uint16_t hwtype;
 	uint32_t sip;
-	unsigned char smac[6];
-	unsigned int state;
+	uchar smac[6];
+	uint state;
 };
 
-unsigned char* arp_get_hwaddr(uint32_t sip);
+uchar* arp_get_hwaddr(uint32_t sip);
 void arp_init();
 void free_arp();
 void arp_rcv(struct sk_buff *skb);
@@ -98,7 +98,7 @@ void arp_reply(struct sk_buff *skb, struct netdev *netdev);
 int arp_request(uint32_t sip, uint32_t dip, struct netdev *netdev);
 
 
-// arp_hdrÓÃÓÚ»ñÈ¡´ÓÒÔÌ«ÍøÖ¡ÖĞ»ñÈ¡arpÍ·²¿,ÒÔÌ«ÍøÍ·²¿Ö®ºóÁ¢Âí¾ÍÊÇarpĞ­ÒéµÄÍ·²¿
+// arp_hdrç”¨äºè·å–ä»ä»¥å¤ªç½‘å¸§ä¸­è·å–arpå¤´éƒ¨,ä»¥å¤ªç½‘å¤´éƒ¨ä¹‹åç«‹é©¬å°±æ˜¯arpåè®®çš„å¤´éƒ¨
 static inline struct arp_hdr *
 arp_hdr(struct sk_buff *skb)
 {

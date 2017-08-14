@@ -29,7 +29,7 @@
 struct socket;
 
 struct sock_type {
-	struct sock_ops *sock_ops;	/* sock_ops¼ÇÂ¼Ò»Ì×¶ÔsocketµÄ²Ù×İ·½·¨ */
+	struct sock_ops *sock_ops;	/* sock_opsè®°å½•ä¸€å¥—å¯¹socketçš„æ“çºµæ–¹æ³• */
 	struct net_ops *net_ops;
 	int type;
 	int protocol;
@@ -41,7 +41,7 @@ struct sock_ops {
 	int(*read)(struct socket *sock, void *buf, int len);
 	int(*accept)(struct socket *, struct socket *, struct sockaddr_in *);
 	int(*listen)(struct socket *, int);
-	int(*bind)(struct socket *sock, struct sockaddr_in *);	/* °ó¶¨µ½Ä³¸öµØÖ· */
+	int(*bind)(struct socket *sock, struct sockaddr_in *);	/* ç»‘å®šåˆ°æŸä¸ªåœ°å€ */
 	int(*close)(struct socket *sock);
 	int(*free)(struct socket *sock);
 	int(*sendto)(struct socket *sock, const void *buf, size_t len,
@@ -54,16 +54,16 @@ struct net_family {
 	int(*create)(struct socket *sock, int protocol);
 };
 
-/* socket¸ü¼ÓÌù½üµ×²ã,Ëü¼ÇÂ¼ÁËÊ¹ÓÃ¸ÃĞ­ÒéÕ»µÄ½ø³Ìid,¼ÇÂ¼ÁËÕâ¸öÁ¬½ÓµÄÒ»Ğ©ÊôĞÔ. 
-  ¶øsock¸ü¶àµØ¼ÇÂ¼ÁËÊµ¼ÊµÄÁ¬½Ó. sockÊÇsocketµÄÒ»²¿·Ö. */
+/* socketæ›´åŠ è´´è¿‘åº•å±‚,å®ƒè®°å½•äº†ä½¿ç”¨è¯¥åè®®æ ˆçš„è¿›ç¨‹id,è®°å½•äº†è¿™ä¸ªè¿æ¥çš„ä¸€äº›å±æ€§. 
+  è€Œsockæ›´å¤šåœ°è®°å½•äº†å®é™…çš„è¿æ¥. sockæ˜¯socketçš„ä¸€éƒ¨åˆ†. */
 struct socket {
 	struct list_head list;
 	int fd;
 	pid_t pid;
 	short type;
 	int flags;
-	struct sock *sk;				/* sock¼ÇÂ¼µÄÊÇ¹ØÓÚÁ¬½ÓµÄĞÅÏ¢ */
-	struct sock_ops *ops;			/* ¼ÇÂ¼Ò»Ì×¶Ôsocket²Ù×İµÄ·½·¨ */
+	struct sock *sk;				/* sockè®°å½•çš„æ˜¯å…³äºè¿æ¥çš„ä¿¡æ¯ */
+	struct sock_ops *ops;			/* è®°å½•ä¸€å¥—å¯¹socketæ“çºµçš„æ–¹æ³• */
 };
 
 
@@ -72,8 +72,8 @@ void * socket_ipc_open(void *args);
 int _socket(pid_t pid, int domain, int type, int protocol);
 int _listen(pid_t pid, int sockfd, int backlog);
 int _connect(pid_t pid, int sockfd, const struct sockaddr_in *addr);
-int _write(pid_t pid, int sockfd, const void *buf, const unsigned int count);
-int _read(pid_t pid, int sockfd, void* buf, const unsigned int count);
+int _write(pid_t pid, int sockfd, const void *buf, const uint count);
+int _read(pid_t pid, int sockfd, void* buf, const uint count);
 int _bind(pid_t pid, int sockfd, struct sockaddr_in *skaddr);
 int _close(pid_t pid, int sockfd);
 int _accept(pid_t pid, int sockfd, struct sockaddr_in *skaddr);

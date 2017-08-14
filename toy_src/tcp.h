@@ -28,7 +28,7 @@
 
 #define tcp_sk(sk) ((struct tcp_sock *)sk)
 
-/* tcpÊ×²¿µÄ´óĞ¡,tcpÍ·²¿ÓĞ4¸öbitÀ´±íÊ¾Ê×²¿³¤¶È,Ê×²¿³¤¶È¸ø³öÁËÊ×²¿ÖĞ32bit×ÖµÄÊıÄ¿ */
+/* tcpé¦–éƒ¨çš„å¤§å°,tcpå¤´éƒ¨æœ‰4ä¸ªbitæ¥è¡¨ç¤ºé¦–éƒ¨é•¿åº¦,é¦–éƒ¨é•¿åº¦ç»™å‡ºäº†é¦–éƒ¨ä¸­32bitå­—çš„æ•°ç›® */
 #define tcp_hlen(tcp) (tcp->hl << 2)
 
 #ifdef DEBUG_TCP
@@ -81,23 +81,23 @@ do {																						  \
 #endif
 
 struct tcphdr {
-	uint16_t sport;		/* 16Î»Ô´¶Ë¿ÚºÅ */
-	uint16_t dport;		/* 16Î»Ä¿µÄ¶Ë¿ÚºÅ */
-	uint32_t seq;		/* 32Î»ĞòÁĞºÅ */
-	uint32_t ack_seq;	/* 32Î»È·ÈÏĞòÁĞºÅ,Ò»°ã±íÊ¾ÏÂÒ»¸öÆÚÍûÊÕµ½µÄÊı¾İµÄĞòÁĞºÅ */
+	uint16_t sport;		/* 16ä½æºç«¯å£å· */
+	uint16_t dport;		/* 16ä½ç›®çš„ç«¯å£å· */
+	uint32_t seq;		/* 32ä½åºåˆ—å· */
+	uint32_t ack_seq;	/* 32ä½ç¡®è®¤åºåˆ—å·,ä¸€èˆ¬è¡¨ç¤ºä¸‹ä¸€ä¸ªæœŸæœ›æ”¶åˆ°çš„æ•°æ®çš„åºåˆ—å· */
 	uint8_t rsvd : 4;	
-	uint8_t hl : 4;		/* 4Î»Ê×²¿³¤¶È */
-	uint8_t fin : 1,	/* ·¢ËÍ¶ËÍê³É·¢ËÍÈÎÎñ */
-		syn : 1,		/* Í¬²½ĞòºÅÓÃÀ´·¢ÆğÒ»¸öÁ¬½Ó */
-		rst : 1,		/* ÖØ½¨Á¬½Ó */
-		psh : 1,		/* ½ÓÊÕ·½Ó¦¸Ã¾¡¿ì½«Õâ¸ö±¨ÎÄ¶Î½»¸øÓ¦ÓÃ²ã */
-		ack : 1,		/* È·ÈÏĞòºÅÓĞĞ§ */
-		urg : 1,		/* ½ô¼±Ö¸ÕëÓĞĞ§ */
+	uint8_t hl : 4;		/* 4ä½é¦–éƒ¨é•¿åº¦ */
+	uint8_t fin : 1,	/* å‘é€ç«¯å®Œæˆå‘é€ä»»åŠ¡ */
+		syn : 1,		/* åŒæ­¥åºå·ç”¨æ¥å‘èµ·ä¸€ä¸ªè¿æ¥ */
+		rst : 1,		/* é‡å»ºè¿æ¥ */
+		psh : 1,		/* æ¥æ”¶æ–¹åº”è¯¥å°½å¿«å°†è¿™ä¸ªæŠ¥æ–‡æ®µäº¤ç»™åº”ç”¨å±‚ */
+		ack : 1,		/* ç¡®è®¤åºå·æœ‰æ•ˆ */
+		urg : 1,		/* ç´§æ€¥æŒ‡é’ˆæœ‰æ•ˆ */
 		ece : 1,
 		cwr : 1;
-	uint16_t win;		/* 16Î»´°¿Ú´óĞ¡ */
-	uint16_t csum;		/* 16Î»Ğ£ÑéºÍ */
-	uint16_t urp;		/* 16Î»½ô¼±Ö¸Õë */
+	uint16_t win;		/* 16ä½çª—å£å¤§å° */
+	uint16_t csum;		/* 16ä½æ ¡éªŒå’Œ */
+	uint16_t urp;		/* 16ä½ç´§æ€¥æŒ‡é’ˆ */
 	uint8_t data[];
 } __attribute__((packed));
 
@@ -122,10 +122,10 @@ struct tcpiphdr {
 } __attribute__((packed));
 
 enum tcp_states {
-	TCP_LISTEN,			/* µÈ´ıÒ»¸öÁ¬½Ó */
-	TCP_SYN_SENT,		/* ÒÑ¾­·¢ËÍÁËÒ»¸öÁ¬½ÓÇëÇó,µÈ´ı¶Ô·½µÄ»Ø¸´ */
-	TCP_SYN_RECEIVED,   /* ½ÓÊÕµ½ÁË¶Ô·½·¢¹ıÀ´µÄsyn, ack,ĞèÒª·¢ËÍÈ·ÈÏ */
-	TCP_ESTABLISHED,    /* Á¬½Ó½¨Á¢³É¹¦ */
+	TCP_LISTEN,			/* ç­‰å¾…ä¸€ä¸ªè¿æ¥ */
+	TCP_SYN_SENT,		/* å·²ç»å‘é€äº†ä¸€ä¸ªè¿æ¥è¯·æ±‚,ç­‰å¾…å¯¹æ–¹çš„å›å¤ */
+	TCP_SYN_RECEIVED,   /* æ¥æ”¶åˆ°äº†å¯¹æ–¹å‘è¿‡æ¥çš„syn, ack,éœ€è¦å‘é€ç¡®è®¤ */
+	TCP_ESTABLISHED,    /* è¿æ¥å»ºç«‹æˆåŠŸ */
 	TCP_FIN_WAIT_1,
 	TCP_FIN_WAIT_2,
 	TCP_CLOSE,
@@ -135,45 +135,45 @@ enum tcp_states {
 	TCP_TIME_WAIT,
 };
 
-/* Transmission Control Block ´«Êä¿ØÖÆ¿é */
+/* Transmission Control Block ä¼ è¾“æ§åˆ¶å— */
 struct tcb {
-	/* sending side ·¢ËÍ·½,Ö¸µÄÊÇ´Ë¶Ë */
-	uint32_t snd_una; // send unacknowledge #ÉĞÎ´±»È·ÈÏµÄÊı¾İµÄÆğÊ¼ĞòÁĞºÅ
-	uint32_t snd_nxt; // send next #ÏÂÒ»¸öÒª·¢ËÍµÄÊı¾İbit¶ÔÓ¦µÄĞòÁĞºÅ,¼´seq
-	uint32_t snd_wnd; // send window #·¢ËÍ´°¿ÚµÄ´óĞ¡
+	/* sending side å‘é€æ–¹,æŒ‡çš„æ˜¯æ­¤ç«¯ */
+	uint32_t snd_una; // send unacknowledge #å°šæœªè¢«ç¡®è®¤çš„æ•°æ®çš„èµ·å§‹åºåˆ—å·
+	uint32_t snd_nxt; // send next #ä¸‹ä¸€ä¸ªè¦å‘é€çš„æ•°æ®bitå¯¹åº”çš„åºåˆ—å·,å³seq
+	uint32_t snd_wnd; // send window #å‘é€çª—å£çš„å¤§å°
 	uint32_t snd_up;  // send urgent pointer
 	uint32_t snd_wl1; // segment sequence number used for last window update
 	uint32_t snd_wl2; // segment acknowledgment number used for last window update
-	uint32_t isn;	  // initial send sequence number #³õÊ¼µÄĞòÁĞºÅ(×Ô¼º²úÉúµÄ)
-	/* receiving side ½ÓÊÕ·½,Ö¸µÄÊÇ±Ë¶Ë */
-	uint32_t rcv_nxt; // receive next #ÏÂÒ»¸öÆÚÍûÊÕµ½µÄÊı¾İµÄĞòºÅ,Ò»°ãÓÃ×÷·¢¸ø¶Ô·½µÄackĞòºÅ
-	uint32_t rcv_wnd; // receive window #½ÓÊÕ´°¿ÚµÄ´óĞ¡
+	uint32_t isn;	  // initial send sequence number #åˆå§‹çš„åºåˆ—å·(è‡ªå·±äº§ç”Ÿçš„)
+	/* receiving side æ¥æ”¶æ–¹,æŒ‡çš„æ˜¯å½¼ç«¯ */
+	uint32_t rcv_nxt; // receive next #ä¸‹ä¸€ä¸ªæœŸæœ›æ”¶åˆ°çš„æ•°æ®çš„åºå·,ä¸€èˆ¬ç”¨ä½œå‘ç»™å¯¹æ–¹çš„ackåºå·
+	uint32_t rcv_wnd; // receive window #æ¥æ”¶çª—å£çš„å¤§å°
 	uint32_t rcv_up;  // receive urgent pointer
-	uint32_t irs;	  // initial receive sequence number #½ÓÊÕµ½µÄÆğÊ¼ĞòÁĞºÅ(¶Ô·½µÄÆğÊ¼ĞòÁĞºÅ)
+	uint32_t irs;	  // initial receive sequence number #æ¥æ”¶åˆ°çš„èµ·å§‹åºåˆ—å·(å¯¹æ–¹çš„èµ·å§‹åºåˆ—å·)
 };
 
-/* tcp_sockÔÚÔ­±¾sockµÄ»ù´¡ÉÏÔö¼ÓÁËºÜ¶àĞÂµÄ¶«Î÷. */
+/* tcp_sockåœ¨åŸæœ¬sockçš„åŸºç¡€ä¸Šå¢åŠ äº†å¾ˆå¤šæ–°çš„ä¸œè¥¿. */
 struct tcp_sock {
 	struct sock sk;
 	int fd;
-	uint16_t tcp_header_len;	/* tcpÍ·²¿´óĞ¡ */
-	struct tcb tcb;				/* ´«Êä¿ØÖÆ¿é */
+	uint16_t tcp_header_len;	/* tcpå¤´éƒ¨å¤§å° */
+	struct tcb tcb;				/* ä¼ è¾“æ§åˆ¶å— */
 	uint8_t flags;
 	uint8_t backoff;
-	struct list_head listen_queue;	/* µÈ´ıÈı´ÎÎÕÊÖÖĞµÄµÚ¶ş´Îack+syn */
-	struct list_head accept_queue;	/* µÈ´ıÈı´ÎÎÕÊÖÖĞµÄ×îºóÒ»´ÎµÄack */
+	struct list_head listen_queue;	/* ç­‰å¾…ä¸‰æ¬¡æ¡æ‰‹ä¸­çš„ç¬¬äºŒæ¬¡ack+syn */
+	struct list_head accept_queue;	/* ç­‰å¾…ä¸‰æ¬¡æ¡æ‰‹ä¸­çš„æœ€åä¸€æ¬¡çš„ack */
 	struct list_head list;
-	struct wait_lock wait;	/* µÈ´ı½ÓÊÕ»òÕßÁ¬½Ó */
+	struct wait_lock wait;	/* ç­‰å¾…æ¥æ”¶æˆ–è€…è¿æ¥ */
 	struct tcp_sock *parent;
 	struct timer *retransmit;
 	struct timer *delack;
-	struct timer *keepalive;	/* ±£»î */
+	struct timer *keepalive;	/* ä¿æ´» */
 	struct timer *linger;
 	uint8_t delacks;
 	uint16_t rmss;				/* remote maximum segment size */ 
-	uint16_t smss;				/* ×î´ó±¨ÎÄ¶Î³¤¶È */
-	struct sk_buff_head ofo_queue; /* ofo_queueÓÃÓÚ¼ÇÂ¼ÄÇĞ©
-								   Ã»ÓĞ°´ÕÕË³Ğòµ½´ïµÄtcpÊı¾İ±¨ */
+	uint16_t smss;				/* æœ€å¤§æŠ¥æ–‡æ®µé•¿åº¦ */
+	struct sk_buff_head ofo_queue; /* ofo_queueç”¨äºè®°å½•é‚£äº›
+								   æ²¡æœ‰æŒ‰ç…§é¡ºåºåˆ°è¾¾çš„tcpæ•°æ®æŠ¥ */
 };
 
 static inline struct tcphdr *
@@ -183,7 +183,7 @@ tcp_hdr(const struct sk_buff *skb)
 }
 
 
-/* tcp_accept_dequeue ´Óacccept¶ÓÁĞÖĞÈ¡³öÒ»¸ösock */
+/* tcp_accept_dequeue ä»acccepté˜Ÿåˆ—ä¸­å–å‡ºä¸€ä¸ªsock */
 static struct tcp_sock * 
 tcp_accept_dequeue(struct tcp_sock *tsk)
 {
@@ -194,7 +194,7 @@ tcp_accept_dequeue(struct tcp_sock *tsk)
 	return newtsk;
 }
 
-/* tcp_accept_enqueue ½«tsk·ÅÈëµ½acccept¶ÓÁĞÖĞ */
+/* tcp_accept_enqueue å°†tskæ”¾å…¥åˆ°acccepté˜Ÿåˆ—ä¸­ */
 static inline void
 tcp_accept_enqueue(struct tcp_sock *tsk)
 {
@@ -208,8 +208,8 @@ int tcp_generate_isn();
 int tcp_sock_init(struct sock *sk);
 int tcp_init();
 int tcp_v4_connect(struct sock *sk, const struct sockaddr_in *addr);
-int tcp_write(struct sock *sk, const void *buf, int len);
-int tcp_read(struct sock *sk, void *buf, int len);
+int tcp_write(struct sock *sk, const void *buf, const uint len);
+int tcp_read(struct sock *sk, void *buf, const uint len);
 int tcp_recv_notify(struct sock *sk);
 int tcp_close(struct sock *sk);
 int tcp_free_sock(struct sock *sk);
@@ -257,6 +257,6 @@ int tcp_send_reset(struct tcp_sock *tsk);
 
 /*tcp_data.c*/
 int tcp_data_queue(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb);
-int tcp_data_dequeue(struct tcp_sock *tsk, void *user_buf, int userlen);
+int tcp_data_dequeue(struct tcp_sock *tsk, void *user_buf, const uint userlen);
 
 #endif // !TCP_H

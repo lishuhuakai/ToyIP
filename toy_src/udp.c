@@ -1,12 +1,12 @@
 #include "udp.h"
 
 /**\
- * udp_genarate_port Ëæ»ú²úÉúudp½Ó¿Ú.tcpºÍudpµÄ½Ó¿ÚÏµÍ³ÊÇ¶ÀÁ¢µÄ. 
+ * udp_genarate_port éšæœºäº§ç”Ÿudpæ¥å£.tcpå’Œudpçš„æ¥å£ç³»ç»Ÿæ˜¯ç‹¬ç«‹çš„. 
 \**/
 uint16_t 
 udp_generate_port()
 {
-	// todo: ¸üºÃµÄ·½·¨À´²úÉúport
+	// todo: æ›´å¥½çš„æ–¹æ³•æ¥äº§ç”Ÿport
 	static int port = 40000;
 	return ++port + (timer_get_tick() % 10000);
 }
@@ -35,20 +35,20 @@ udp_init_segment(struct udphdr *udphd, struct iphdr *iphd, struct sk_buff *skb)
 void
 udp_in(struct sk_buff *skb)
 {
-	struct iphdr *iphd = ip_hdr(skb);	/* ipÍ·²¿ */
+	struct iphdr *iphd = ip_hdr(skb);	/* ipå¤´éƒ¨ */
 	struct udphdr *udphd = udp_hdr(skb);
 	struct sock *sk;
 
 	udp_init_segment(udphd, iphd, skb);
-	// todo: ¼ì²éĞ£ÑéÖµ
+	// todo: æ£€æŸ¥æ ¡éªŒå€¼
 
 	sk = udp_lookup_sock(udphd->dport);
 
 	if (!sk) {
-		// tofix: ·¢ËÍicmp²»¿É´ï»ØÓ¦.
+		// tofix: å‘é€icmpä¸å¯è¾¾å›åº”.
 		goto drop;
 	}
-	/* Ö±½Ó½«Êı¾İ¼ÓÈëµ½½ÓÊÕ¶ÓÁĞµÄÎ²²¿¼´¿É. */
+	/* ç›´æ¥å°†æ•°æ®åŠ å…¥åˆ°æ¥æ”¶é˜Ÿåˆ—çš„å°¾éƒ¨å³å¯. */
 	skb_queue_tail(&sk->receive_queue, skb);
 	sk->ops->recv_notify(sk);
 	return;
@@ -59,18 +59,18 @@ drop:
 
 
 /**\
- * udp_data_dequeue È¡³öÒ»¸öÊı¾İ±¨.
+ * udp_data_dequeue å–å‡ºä¸€ä¸ªæ•°æ®æŠ¥.
 \**/
 int
-udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen, struct sockaddr_in *saddr)
+udp_data_dequeue(struct udp_sock *usk, void *user_buf, const uint userlen, struct sockaddr_in *saddr)
 {
 	struct sock *sk = &usk->sk;
 	struct udphdr *udphd;
 	struct iphdr *ih;
 	struct sk_buff *skb;
-	int rlen = -1;
-	/* udp¿É²»ÊÇÊ²Ã´Á÷Ê½Ğ­Òé,¶øÇÒ,ÓĞÒ»µãĞèÒª×¢Òâ,Ò»µ©userlen±ÈÊµ¼ÊµÄudpÊı¾İ°ü³¤¶ÈÒªĞ¡,
-	  ÄÇÃ´¶àµÄ²¿·Ö»á±»¶ªÆúµô. */
+	uint rlen = 0;
+	/* udpå¯ä¸æ˜¯ä»€ä¹ˆæµå¼åè®®,è€Œä¸”,æœ‰ä¸€ç‚¹éœ€è¦æ³¨æ„,ä¸€æ—¦userlenæ¯”å®é™…çš„udpæ•°æ®åŒ…é•¿åº¦è¦å°,
+	  é‚£ä¹ˆå¤šçš„éƒ¨åˆ†ä¼šè¢«ä¸¢å¼ƒæ‰. */
 	pthread_mutex_lock(&sk->receive_queue.lock);
 	if (!skb_queue_empty(&sk->receive_queue))
 	{
@@ -79,7 +79,7 @@ udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen, struct socka
 		ih = ip_hdr(skb);
 		rlen = skb->dlen > userlen? userlen : skb->dlen;
 		memcpy(user_buf, skb->payload, rlen);
-		/* ¼´Ê¹¸ÃÊı¾İ±¨µÄÊı¾İÃ»ÓĞ¶ÁÍê,Ò²Òª¶ªÆúµô. */
+		/* å³ä½¿è¯¥æ•°æ®æŠ¥çš„æ•°æ®æ²¡æœ‰è¯»å®Œ,ä¹Ÿè¦ä¸¢å¼ƒæ‰. */
 		skb_dequeue(&sk->receive_queue);
 		if (saddr) {
 			saddr->sin_family = AF_INET;
@@ -90,11 +90,11 @@ udp_data_dequeue(struct udp_sock *usk, void *user_buf, int userlen, struct socka
 		free_skb(skb);
 	}
 	pthread_mutex_unlock(&sk->receive_queue.lock);
-	return rlen;
+	return rlen == 0 ? -1 : (int)rlen;
 }
 
 /**\ 
- * udp_data_enqueue µ±udpÊı¾İµ½À´Ê±,½«Êı¾İ±¨·Åµ½½ÓÊÕ¶ÓÁĞÎ²²¿. 
+ * udp_data_enqueue å½“udpæ•°æ®åˆ°æ¥æ—¶,å°†æ•°æ®æŠ¥æ”¾åˆ°æ¥æ”¶é˜Ÿåˆ—å°¾éƒ¨. 
 \**/
 int
 udp_data_enqueue(struct udp_sock *usk, struct udphdr *udphd, struct sk_buff *skb)

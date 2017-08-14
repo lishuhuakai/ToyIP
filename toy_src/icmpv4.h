@@ -4,7 +4,7 @@
 #include "syshead.h"
 #include "skbuff.h"
 
-#define ICMP_V4_REPLY				0x00  /* »ØÏÔÓ¦´ğ */
+#define ICMP_V4_REPLY				0x00  /* å›æ˜¾åº”ç­” */
 #define ICMP_V4_DST_UNREACHABLE		0x03
 #define ICMP_V4_SRC_QUENCH			0x04
 #define ICMP_V4_REDIRECT			0x05
@@ -13,14 +13,14 @@
 #define ICMP_V4_ROUTER_SOL			0x0a
 #define ICMP_V4_TIMEOUT				0x0b
 #define ICMP_V4_MALFORMED			0x0c
-#define ICMP_V4_TSTAMP				0x0d	/* Ê±¼ä´ÁÇëÇó */
-#define ICMP_V4_TSTAMP_REPLY		0x0e	/* Ê±¼ä´ÁÓ¦´ğ */
+#define ICMP_V4_TSTAMP				0x0d	/* æ—¶é—´æˆ³è¯·æ±‚ */
+#define ICMP_V4_TSTAMP_REPLY		0x0e	/* æ—¶é—´æˆ³åº”ç­” */
 
-// icmp±¨ÎÄÍ¨ÓÃ¸ñÊ½
+// icmpæŠ¥æ–‡é€šç”¨æ ¼å¼
 struct icmp_v4 {
-	uint8_t type;		// 8Î»ÀàĞÍ
-	uint8_t code;		// 8Î»´úÂë
-	uint16_t csum;		// 16Î»Ğ£ÑéºÍ
+	uint8_t type;		// 8ä½ç±»å‹
+	uint8_t code;		// 8ä½ä»£ç 
+	uint16_t csum;		// 16ä½æ ¡éªŒå’Œ
 	uint8_t data[];
 } __attribute__((packed));
 
@@ -34,9 +34,9 @@ struct icmp_v4_timestamp {
 	uint8_t type;
 	uint8_t code;
 	uint16_t csum;
-	uint32_t otime;		/* ·¢ÆğÊ±¼ä */
-	uint32_t rtime;		/* ½ÓÊÕÊ±¼ä */
-	uint32_t ttime;		/* ´«ËÍÊ±¼ä */
+	uint32_t otime;		/* å‘èµ·æ—¶é—´ */
+	uint32_t rtime;		/* æ¥æ”¶æ—¶é—´ */
+	uint32_t ttime;		/* ä¼ é€æ—¶é—´ */
 } __attribute__((packed));
 
 struct icmp_v4_dst_unreachable {

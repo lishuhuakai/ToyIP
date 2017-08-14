@@ -25,12 +25,12 @@ do {																	\
 struct sk_buff;
 struct netdev;
 
-// eth_hdr ÒÔÌ«ÍøÍ·²¿
+// eth_hdr ä»¥å¤ªç½‘å¤´éƒ¨
 struct eth_hdr
 {
-	uint8_t dmac[6];	// Ä¿µÄmacµØÖ·
-	uint8_t smac[6];	// Ô´macµØÖ·
-	uint16_t ethertype; // Ö¡µÄÀàĞÍ,¿ÉÑ¡ÓĞ0x0800(IPv4), 0x86dd(IPv6)
+	uint8_t dmac[6];	// ç›®çš„macåœ°å€
+	uint8_t smac[6];	// æºmacåœ°å€
+	uint16_t ethertype; // å¸§çš„ç±»å‹,å¯é€‰æœ‰0x0800(IPv4), 0x86dd(IPv6)
 	uint8_t payload[];
 } __attribute__((packed));
 
@@ -38,7 +38,7 @@ static inline struct eth_hdr *
 eth_hdr(struct sk_buff *skb)
 {
 	struct eth_hdr *hdr = (struct eth_hdr *)skb_head(skb);
-	hdr->ethertype = ntohs(hdr->ethertype);			// ½«ÍøÂç×Ö½ÚĞò×ª»»Îª±¾µØ×Ö½ÚĞò
+	hdr->ethertype = ntohs(hdr->ethertype);			// å°†ç½‘ç»œå­—èŠ‚åºè½¬æ¢ä¸ºæœ¬åœ°å­—èŠ‚åº
 	return hdr;
 }
 

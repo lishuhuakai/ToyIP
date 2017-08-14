@@ -12,22 +12,22 @@ ip_output(struct sock *sk, struct sk_buff *skb)
 	struct rtentry *rt;
 	struct iphdr *ihdr = ip_hdr(skb);
 
-	rt = route_lookup(ihdr->daddr);	/* 根据目的ip地址查找路由 */
+	rt = route_lookup(ihdr->daddr);	/* 鏍规嵁鐩殑ip鍦板潃鏌ユ壘璺敱 */
 
 	if (!rt) {
 		/* todo */
 		return -1;
 	}
 
-	skb->dev = rt->dev;				/* dev用于指示 */
+	skb->dev = rt->dev;				/* dev鐢ㄤ簬鎸囩ず */
 	skb->rt = rt;
-	skb_push(skb, IP_HDR_LEN);		/* ip头部 */
+	skb_push(skb, IP_HDR_LEN);		/* ip澶撮儴 */
 
-	ihdr->version = IPV4;			/* ip的版本是IPv4 */
-	ihdr->ihl = 0x05;				/* ip头部20字节,也就是说不附带任何选项 */
-	ihdr->tos = 0;					/* tos选项不被大多数TCP/IP实现所支持  */
-	ihdr->len = skb->len;			/* 整个ip数据报的大小 */
-	ihdr->id = ihdr->id;			/* id不变 */
+	ihdr->version = IPV4;			/* ip鐨勭増鏈槸IPv4 */
+	ihdr->ihl = 0x05;				/* ip澶撮儴20瀛楄妭,涔熷氨鏄涓嶉檮甯︿换浣曢�夐」 */
+	ihdr->tos = 0;					/* tos閫夐」涓嶈澶у鏁癟CP/IP瀹炵幇鎵�鏀寔  */
+	ihdr->len = skb->len;			/* 鏁翠釜ip鏁版嵁鎶ョ殑澶у皬 */
+	ihdr->id = ihdr->id;			/* id涓嶅彉 */
 	ihdr->flags = 0;
 	ihdr->frag_offset = 0;
 	ihdr->ttl = 64;

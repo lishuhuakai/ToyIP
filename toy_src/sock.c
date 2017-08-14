@@ -7,7 +7,7 @@ sk_alloc(struct net_ops *ops, int protocol)
 {
 	struct sock *sk;
 	sk = ops->alloc_sock(protocol);
-	sk->ops = ops;	/* ¼ÇÂ¼ÏÂÒ»Ì×²Ù×÷·½·¨ */
+	sk->ops = ops;	/* è®°å½•ä¸‹ä¸€å¥—æ“ä½œæ–¹æ³• */
 	return sk;
 }
 
@@ -16,13 +16,13 @@ sk_init(struct sock *sk)
 {
 	sk->sock = NULL;
 	wait_init(&sk->recv_wait);
-	skb_queue_init(&sk->receive_queue);		/* ³õÊ¼»¯½ÓÊÕ¶ÓÁĞ */
-	skb_queue_init(&sk->write_queue);		/* ³õÊ¼»¯·¢ËÍ¶ÓÁĞ */
-	pthread_mutex_init(&sk->lock, NULL);	/* ³õÊ¼»¯Ëø */
-	sk->ops->init(sk);						/* net_ops×ö³õÊ¼»¯¹¤×÷ */
+	skb_queue_init(&sk->receive_queue);		/* åˆå§‹åŒ–æ¥æ”¶é˜Ÿåˆ— */
+	skb_queue_init(&sk->write_queue);		/* åˆå§‹åŒ–å‘é€é˜Ÿåˆ— */
+	pthread_mutex_init(&sk->lock, NULL);	/* åˆå§‹åŒ–é” */
+	sk->ops->init(sk);						/* net_opsåšåˆå§‹åŒ–å·¥ä½œ */
 }
 
-/* sk_init_with_socketÓÃÓÚ³õÊ¼»¯sk,²¢ÇÒ½«sk¼ÇÂ¼µ½sockÖĞ */
+/* sk_init_with_socketç”¨äºåˆå§‹åŒ–sk,å¹¶ä¸”å°†skè®°å½•åˆ°sockä¸­ */
 void
 sk_init_with_socket(struct socket *sock, struct sock *sk)
 {

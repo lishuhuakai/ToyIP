@@ -8,6 +8,8 @@ static int udp_sock_amount = 0;
 static LIST_HEAD(udp_socks);
 static pthread_rwlock_t slock = PTHREAD_RWLOCK_INITIALIZER;
 
+void udp_free_sock(struct sock *sk);
+
 static void
 udp_socks_enqueue(struct sock *sk)
 {
@@ -27,7 +29,7 @@ udp_socks_remove(struct sock *sk)
 }
 
 /**\
- * udp_sk_in_socks  ÅĞ¶ÏskÊÇ·ñÒÑ¾­¹Òµ½ÁËudp_socksÕâÕÅÁ´±íÖ®ÖĞ.
+ * udp_sk_in_socks  åˆ¤æ–­skæ˜¯å¦å·²ç»æŒ‚åˆ°äº†udp_socksè¿™å¼ é“¾è¡¨ä¹‹ä¸­.
 \**/
 static inline int
 udp_sk_in_socks(struct sock *sk)
@@ -73,7 +75,7 @@ struct net_ops udp_ops = {
 };
 
 /**\
- * udp_init Õû¸öudpĞ­ÒéÈç¹ûÓĞÊ²Ã´ĞèÒª³õÊ¼»¯µÄ¶«Î÷,¿ÉÒÔ·Åµ½Õâ¸öº¯ÊıÖĞ.
+ * udp_init æ•´ä¸ªudpåè®®å¦‚æœæœ‰ä»€ä¹ˆéœ€è¦åˆå§‹åŒ–çš„ä¸œè¥¿,å¯ä»¥æ”¾åˆ°è¿™ä¸ªå‡½æ•°ä¸­.
 \**/
 void 
 udp_init()
@@ -85,7 +87,7 @@ static inline int
 udp_recv_notify(struct sock *sk)
 {
 	if (&sk->recv_wait) {
-		return wait_wakeup(&sk->recv_wait); /* »½ĞÑµÈ´ıµÄ½ø³Ì */
+		return wait_wakeup(&sk->recv_wait); /* å”¤é†’ç­‰å¾…çš„è¿›ç¨‹ */
 	}
 	return -1;
 }
@@ -108,20 +110,20 @@ udp_sock_init(struct sock *sk)
 
 
 /**\
- *	udp_recvfrom ÓÃÓÚ²¶»ñsaddrµØÖ·´«µİ¹ıÀ´µÄÊı¾İ.
+ *	udp_recvfrom ç”¨äºæ•è·saddråœ°å€ä¼ é€’è¿‡æ¥çš„æ•°æ®.
 \**/
 int
-udp_recvfrom(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr)
+udp_recvfrom(struct sock *sk, void *buf, const uint len, struct sockaddr_in *saddr)
 {
 	int rlen;
 	struct udp_sock *usk = udp_sk(sk);
 
 	for (;;) {
 		rlen = udp_data_dequeue(usk, buf, len, saddr);
-		/* rlen != -1±íÊ¾ÒÑ¾­´¦ÀíÁËÒ»¸öudpÊı¾İ±¨,¿ÉÒÔ·µ»ØÁË. */
+		/* rlen != -1è¡¨ç¤ºå·²ç»å¤„ç†äº†ä¸€ä¸ªudpæ•°æ®æŠ¥,å¯ä»¥è¿”å›äº†. */
 		if (rlen != -1) break;
 
-		/* ½ÓÏÂÀ´rlen == -1,±íÊ¾ÔİÊ±Ã»ÓĞudpÊı¾İ¿É¶ÁÈ¡ */
+		/* æ¥ä¸‹æ¥rlen == -1,è¡¨ç¤ºæš‚æ—¶æ²¡æœ‰udpæ•°æ®å¯è¯»å– */
 		wait_sleep(&sk->recv_wait);
 	}
 	return rlen;
@@ -135,7 +137,7 @@ udp_clean_up_receive_queue(struct sock *sk)
 
 	pthread_mutex_lock(&sk->receive_queue.lock);
 	while ((skb = skb_peek(&sk->receive_queue)) != NULL) {
-		/* ÊÍ·ÅµôÒÑ¾­½ÓÊÕµ½ÁËÈ·ÈÏµÄÊı¾İ */
+		/* é‡Šæ”¾æ‰å·²ç»æ¥æ”¶åˆ°äº†ç¡®è®¤çš„æ•°æ® */
 		skb_dequeue(&sk->receive_queue);
 		skb->refcnt--;
 		free_skb(skb);
@@ -150,24 +152,24 @@ udp_connect(struct sock *sk, const struct sockaddr_in *addr)
 	extern char * stackaddr;
 	int in_socks = 0;
 
-	// todo: ¶ÔipµØÖ·×ö¼ì²é
+	// todo: å¯¹ipåœ°å€åšæ£€æŸ¥
 
 	uint16_t dport = addr->sin_port;
 	uint32_t daddr = addr->sin_addr.s_addr;
 	pthread_rwlock_wrlock(&slock);
 	
-	/* ¿ÉÒÔ¶à´Îµ÷ÓÃconnnect,µÚÒ»Òª×öµÄÊÇ¶Ï¿ªÖ®Ç°µÄÁ¬½Ó */
+	/* å¯ä»¥å¤šæ¬¡è°ƒç”¨connnect,ç¬¬ä¸€è¦åšçš„æ˜¯æ–­å¼€ä¹‹å‰çš„è¿æ¥ */
 	if (sk->state == UDP_CONNECTED)
 		udp_clean_up_receive_queue(sk);
 
-	/* Èç¹ûsk->saddr != NULL±íÊ¾skÒÑ¾­±»¹ÒÔÚudp_sockÖ®ÉÏÁË */
-	if (sk->saddr != NULL) in_socks = 1;
+	/* å¦‚æœsk->saddr != NULLè¡¨ç¤ºskå·²ç»è¢«æŒ‚åœ¨udp_sockä¹‹ä¸Šäº† */
+	if (sk->saddr != 0) in_socks = 1;
 
 
 	sk->dport = ntohs(dport);
 	sk->daddr = ntohl(daddr);
 	sk->saddr = parse_ipv4_string(stackaddr);
-	sk->sport = udp_generate_port();	/* Ëæ»ú²úÉúÒ»¸ö¶Ë¿Ú */
+	sk->sport = udp_generate_port();	/* éšæœºäº§ç”Ÿä¸€ä¸ªç«¯å£ */
 	sk->state = UDP_CONNECTED;
 
 	if (!in_socks) {
@@ -179,12 +181,12 @@ udp_connect(struct sock *sk, const struct sockaddr_in *addr)
 }
 
 int
-udp_write(struct sock *sk, const void *buf, int len)
+udp_write(struct sock *sk, const void *buf, const uint len)
 {
 
-	if (len < 0 || len > UDP_MAX_BUFSZ)
+	if (len > UDP_MAX_BUFSZ)
 		return -1;
-	/* ¿ÉÒÔ±£Ö¤,µ÷ÓÃudp_sendÊ±µÄÊı¾İ³¤¶ÈÔÚÕı³£·¶Î§ÄÚ.¿ÉÒÔ·¢ËÍ³¤¶ÈÎª0µÄudpÊı¾İ±¨. */
+	/* å¯ä»¥ä¿è¯,è°ƒç”¨udp_sendæ—¶çš„æ•°æ®é•¿åº¦åœ¨æ­£å¸¸èŒƒå›´å†….å¯ä»¥å‘é€é•¿åº¦ä¸º0çš„udpæ•°æ®æŠ¥. */
 	return udp_send(sk, buf, len);
 }
 
@@ -195,28 +197,28 @@ udp_alloc_skb(int size)
 	struct sk_buff *skb = alloc_skb(reserved);
 	
 	skb_reserve(skb, reserved);
-	skb->protocol = IP_UDP; 	/* udpĞ­Òé */
+	skb->protocol = IP_UDP; 	/* udpåè®® */
 	skb->dlen = size;
 	return skb;
 }
 
 
 int 
-udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in *skaddr)
+udp_sendto(struct sock *sk, const void *buf, const uint size, const struct sockaddr_in *skaddr)
 {
 	extern char *stackaddr;
 	int rc = -1;
 
-	/* Èç¹ûÒÑ¾­µ÷ÓÃ¹ıbindº¯Êı,°ó¶¨¹ıµØÖ·ÁË,ÄÇÃ´skaddr±ØĞëÎª¿Õ */
+	/* å¦‚æœå·²ç»è°ƒç”¨è¿‡bindå‡½æ•°,ç»‘å®šè¿‡åœ°å€äº†,é‚£ä¹ˆskaddrå¿…é¡»ä¸ºç©º */
 	if ((sk->state == UDP_CONNECTED) && (skaddr == NULL)) {
 		rc = udp_send(sk, buf, size);	
 	}
-	/* Èç¹ûÃ»ÓĞµ÷ÓÃ¹ıbindº¯Êı,²¢ÇÒskaddr²»Îª¿Õ */
+	/* å¦‚æœæ²¡æœ‰è°ƒç”¨è¿‡bindå‡½æ•°,å¹¶ä¸”skaddrä¸ä¸ºç©º */
 	else if ((sk->state == UDP_UNCONNECTED) && (skaddr != NULL)) {
 		pthread_rwlock_wrlock(&slock);
 		sk->daddr = ntohl(skaddr->sin_addr.s_addr);
 		sk->dport = ntohs(skaddr->sin_port);
-		sk->sport = udp_generate_port();	/* Ëæ»ú²úÉúÒ»¸ö¶Ë¿Ú */
+		sk->sport = udp_generate_port();	/* éšæœºäº§ç”Ÿä¸€ä¸ªç«¯å£ */
 		sk->saddr = ip_parse(stackaddr);
 		if (!udp_sk_in_socks(sk))
 			list_add_tail(&sk->link, &udp_socks);
@@ -227,12 +229,12 @@ udp_sendto(struct sock *sk, const void *buf, int size, const struct sockaddr_in 
 }
 
 int
-udp_send(struct sock *sk, const void *buf, int len)
+udp_send(struct sock *sk, const void *buf, const uint len)
 {
 	struct sk_buff *skb;
 	struct udphdr *udphd;
 
-	// tofix: ¿ÉÄÜĞèÒª½«Êı¾İ·ÖÆ¬,Èç¹ûÊı¾İ¹ı´óµÄ»°,µ±È»,ÕâÓ¦¸Ã·¢ÉúÔÚip²ã 
+	// tofix: å¯èƒ½éœ€è¦å°†æ•°æ®åˆ†ç‰‡,å¦‚æœæ•°æ®è¿‡å¤§çš„è¯,å½“ç„¶,è¿™åº”è¯¥å‘ç”Ÿåœ¨ipå±‚ 
 	skb = udp_alloc_skb(len);
 	skb_push(skb, len);
 	memcpy(skb->data, buf, len);
@@ -274,21 +276,20 @@ udp_free_sock(struct sock *sk)
 
 
 int
-udp_read(struct sock *sk, void *buf, int len)
+udp_read(struct sock *sk, void *buf, const uint len)
 {
-	/* udp¿ÉÒÔ¶Á0¸ö×Ö½Ú. */
+	/* udpå¯ä»¥è¯»0ä¸ªå­—èŠ‚. */
 	struct udp_sock *usk = udp_sk(sk);
 	int rlen = 0;
-	if (len < 0) return -1;
 
 	memset(buf, 0, len);
 
 	for (;;) {
 		rlen = udp_data_dequeue(usk, buf, len, NULL);
-		/* rlen != -1±íÊ¾ÒÑ¾­´¦ÀíÁËÒ»¸öudpÊı¾İ±¨,¿ÉÒÔ·µ»ØÁË. */
+		/* rlen != -1è¡¨ç¤ºå·²ç»å¤„ç†äº†ä¸€ä¸ªudpæ•°æ®æŠ¥,å¯ä»¥è¿”å›äº†. */
 		if (rlen != -1) break;
 
-		/* ½ÓÏÂÀ´rlen == -1,±íÊ¾ÔİÊ±Ã»ÓĞudpÊı¾İ¿É¶ÁÈ¡ */
+		/* æ¥ä¸‹æ¥rlen == -1,è¡¨ç¤ºæš‚æ—¶æ²¡æœ‰udpæ•°æ®å¯è¯»å– */
 		wait_sleep(&sk->recv_wait);
 	}
 	return rlen;
@@ -324,22 +325,22 @@ out:
 
 
 /**\
- *  udp_bind °ó¶¨µ½Ò»¸ö¶Ë¿ÚÖ®ÉÏ,ÕâÀïĞèÒª×¢ÒâÒ»ÏÂ,saddrÔÚinet_bindº¯ÊıÖĞ¾­Àú¹ı¼ì²é
- *  ²¢²»´æÔÚÊ²Ã´ÎÊÌâ.
+ *  udp_bind ç»‘å®šåˆ°ä¸€ä¸ªç«¯å£ä¹‹ä¸Š,è¿™é‡Œéœ€è¦æ³¨æ„ä¸€ä¸‹,saddråœ¨inet_bindå‡½æ•°ä¸­ç»å†è¿‡æ£€æŸ¥
+ *  å¹¶ä¸å­˜åœ¨ä»€ä¹ˆé—®é¢˜.
 \**/
 static int 
 udp_bind(struct sock *sk, struct sockaddr_in *saddr)
 {
 	int err;
-	/* ²»ÄÜ¶à´Îµ÷ÓÃbind */
+	/* ä¸èƒ½å¤šæ¬¡è°ƒç”¨bind */
 	if (sk->saddr != 0) return -1;
 	uint16_t bindport = ntohs(saddr->sin_port);
 	if ((err = udp_set_sport(sk, bindport)) < 0) {
-		/* Éè¶¨¶Ë¿Ú³ö´í,¿ÉÄÜÊÇ¶Ë¿ÚÒÑ¾­±»Õ¼ÓÃ */
+		/* è®¾å®šç«¯å£å‡ºé”™,å¯èƒ½æ˜¯ç«¯å£å·²ç»è¢«å ç”¨ */
 		return -1;
 	}
 	sk->saddr = ntohl(saddr->sin_addr.s_addr);
-	/* ½ÓÏÂÀ´ĞèÒª½«sk¹Òµ½udp_socksÁ´ÉÏ */
+	/* æ¥ä¸‹æ¥éœ€è¦å°†skæŒ‚åˆ°udp_socksé“¾ä¸Š */
 	udp_socks_enqueue(sk);
 	return 0;
 }

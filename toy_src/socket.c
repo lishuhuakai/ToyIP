@@ -31,7 +31,7 @@ extern struct net_family inet;
 
 /* AF_INET=2 */
 static struct net_family *families[128] = {
-	/* ÕâÀï´¿´âÊÇÎªÁË±£Áôunixº¯ÊıµÄÒ»µãÓ°×Ó,Êµ¼ÊÉÏ¿ÉÒÔÈ¥³ıµô */
+	/* è¿™é‡Œçº¯ç²¹æ˜¯ä¸ºäº†ä¿ç•™unixå‡½æ•°çš„ä¸€ç‚¹å½±å­,å®é™…ä¸Šå¯ä»¥å»é™¤æ‰ */
 	[AF_INET] = &inet,
 };
 
@@ -62,14 +62,14 @@ socket_debug()
 static struct socket *
 alloc_socket(pid_t pid)
 {
-	/* todo: ÕâÀïĞèÒªÏë³öÒ»ÖÖ·½·¨Ê¹µÃÎÒÃÇµÄfd²»»áºÍkernelµÄfdÖØµş,
-	 ËùÒÔÕâÀïµÄfdÉèÖÃµÃ·Ç³£´ó. */
+	/* todo: è¿™é‡Œéœ€è¦æƒ³å‡ºä¸€ç§æ–¹æ³•ä½¿å¾—æˆ‘ä»¬çš„fdä¸ä¼šå’Œkernelçš„fdé‡å ,
+	 æ‰€ä»¥è¿™é‡Œçš„fdè®¾ç½®å¾—éå¸¸å¤§. */
 	static int fd = 4097;
 	struct socket *sock = malloc(sizeof(struct socket));
 	list_init(&sock->list);
 
-	sock->pid = pid;	/* ½ø³Ìid */
-	sock->fd = fd++;	/* ²»ÖØ¸´ÎÄ¼şÃèÊö·û */
+	sock->pid = pid;	/* è¿›ç¨‹id */
+	sock->fd = fd++;	/* ä¸é‡å¤æ–‡ä»¶æè¿°ç¬¦ */
 	sock->ops = NULL;
 	sock->flags = O_RDWR;
 	return sock;
@@ -86,8 +86,8 @@ free_socket(struct socket *sock)
 	}
 	pthread_rwlock_wrlock(&slock);
 	list_del(&sock->list);
-	/* ĞèÒª×¢ÒâµÄÊÇ,ÕâÀï²¢²»É¾³ıstruct socketÖĞµÄstruct sock,ÒòÎªÕâ¸ösocket
-	¶ÔÓ¦µÄsock¿ÉÄÜ»¹ĞèÒª´¦ÀíÒ»Ğ©ÊÂÇé. */
+	/* éœ€è¦æ³¨æ„çš„æ˜¯,è¿™é‡Œå¹¶ä¸åˆ é™¤struct socketä¸­çš„struct sock,å› ä¸ºè¿™ä¸ªsocket
+	å¯¹åº”çš„sockå¯èƒ½è¿˜éœ€è¦å¤„ç†ä¸€äº›äº‹æƒ…. */
 	if (sock->sk) sock->sk->sock = NULL;
 	free(sock);
 	sock == NULL;
@@ -117,16 +117,16 @@ get_socket(pid_t pid, int fd)
 
 
 /**\ 
- * ÒÔÏÂµÄÒ»ÏµÁĞº¯ÊıºÍÎÒÃÇ¾­³£Ê¹ÓÃµÄº¯Êı·Ç³£ÀàËÆ,È·Êµ,ÕâÀïÈ·ÊµÊÇÔÚÊÔÍ¼»¹Ô­Ò»ÏµÁĞµÄÍøÂçÏµÍ³µ÷ÓÃ.
- * ÏÂÃæµÄº¯ÊıÒ»°ã¶¼ÊÇµ÷ÓÃsock->ops->xxx,opsÖ¸µÄÊÇ²Ù×İsocketµÄÒ»ÏµÁĞº¯Êı.ÕâÀïµÄxxx,
- * º¯Êı½Ó¿ÚºÍÎÒÃÇ¾­³£Ê¹ÓÃµÄ»ù±¾ÉÏÊÇÒ»ÖÂµÄ. 
+ * ä»¥ä¸‹çš„ä¸€ç³»åˆ—å‡½æ•°å’Œæˆ‘ä»¬ç»å¸¸ä½¿ç”¨çš„å‡½æ•°éå¸¸ç±»ä¼¼,ç¡®å®,è¿™é‡Œç¡®å®æ˜¯åœ¨è¯•å›¾è¿˜åŸä¸€ç³»åˆ—çš„ç½‘ç»œç³»ç»Ÿè°ƒç”¨.
+ * ä¸‹é¢çš„å‡½æ•°ä¸€èˆ¬éƒ½æ˜¯è°ƒç”¨sock->ops->xxx,opsæŒ‡çš„æ˜¯æ“çºµsocketçš„ä¸€ç³»åˆ—å‡½æ•°.è¿™é‡Œçš„xxx,
+ * å‡½æ•°æ¥å£å’Œæˆ‘ä»¬ç»å¸¸ä½¿ç”¨çš„åŸºæœ¬ä¸Šæ˜¯ä¸€è‡´çš„. 
  *
- * ÕâÀï¿ÉÒÔ±£Ö¤,´«ÈëµÄ²ÎÊıÈ«²¿ÊÇÓĞĞ§µÄ.ËùÒÔ¿ÉÒÔÉ¾³ıµô´íÎó¼ì²éµÄ´úÂë.
+ * è¿™é‡Œå¯ä»¥ä¿è¯,ä¼ å…¥çš„å‚æ•°å…¨éƒ¨æ˜¯æœ‰æ•ˆçš„.æ‰€ä»¥å¯ä»¥åˆ é™¤æ‰é”™è¯¯æ£€æŸ¥çš„ä»£ç .
 \**/
 
 
 /**\
- * _socketº¯Êı¹¹½¨Ò»¸ösocket,²¢ÇÒ½«Æä¼ÓÈëµ½connectionsÕâ¸öÁ´±íÖ®ÖĞ.
+ * _socketå‡½æ•°æ„å»ºä¸€ä¸ªsocket,å¹¶ä¸”å°†å…¶åŠ å…¥åˆ°connectionsè¿™ä¸ªé“¾è¡¨ä¹‹ä¸­.
 \**/
 int
 _socket(pid_t pid, int domain, int type, int protocol)
@@ -145,14 +145,14 @@ _socket(pid_t pid, int domain, int type, int protocol)
 		goto abort_socket;
 	}
 
-	if (family->create(sock, protocol) != 0) {	/* ¹¹½¨Ò»¸ösock,ÕâÀïµÄcreate
-										ÔÚÕâ¸öÕ»ÖĞ,Êµ¼Êµ÷ÓÃinet_createº¯Êı */
+	if (family->create(sock, protocol) != 0) {	/* æ„å»ºä¸€ä¸ªsock,è¿™é‡Œçš„create
+										åœ¨è¿™ä¸ªæ ˆä¸­,å®é™…è°ƒç”¨inet_createå‡½æ•° */
 		print_err("Creating domain failed\n");
 		goto abort_socket;
 	}
 
-	socket_sockets_enqueue(sock); /* ½«ĞÂ¹¹½¨µÄsocket·ÅÈëconnectionsÁ´ÖĞ */
-	return sock->fd;  /* sock->fdÖ»ÊÇÒ»¸ö±êÖ¾¶øÒÑ */
+	socket_sockets_enqueue(sock); /* å°†æ–°æ„å»ºçš„socketæ”¾å…¥connectionsé“¾ä¸­ */
+	return sock->fd;  /* sock->fdåªæ˜¯ä¸€ä¸ªæ ‡å¿—è€Œå·² */
 
 abort_socket:
 	free_socket(sock);
@@ -169,7 +169,7 @@ _bind(pid_t pid, int sockfd, struct sockaddr_in *skaddr)
 			sockfd, pid);
 		return -1;
 	}
-	return sock->ops->bind(sock, skaddr);	/* Êµ¼ÊÉÏµ÷ÓÃÁËinet_bind */
+	return sock->ops->bind(sock, skaddr);	/* å®é™…ä¸Šè°ƒç”¨äº†inet_bind */
 }
 
 int
@@ -186,10 +186,10 @@ _connect(pid_t pid, int sockfd, const struct sockaddr_in *addr)
 }
 
 /**\
- * write Ïòpid½ø³ÌÁ¬½ÓµÄµÚsockfdºÅÎÄ¼şĞ´ÈëÊı¾İ.
+ * write å‘pidè¿›ç¨‹è¿æ¥çš„ç¬¬sockfdå·æ–‡ä»¶å†™å…¥æ•°æ®.
 \**/
 int 
-_write(pid_t pid, int sockfd, const void *buf, const unsigned int count)
+_write(pid_t pid, int sockfd, const void *buf, const uint count)
 {
 	struct socket *sock;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
@@ -201,7 +201,7 @@ _write(pid_t pid, int sockfd, const void *buf, const unsigned int count)
 }
 
 int
-_read(pid_t pid, int sockfd, void* buf, const unsigned int count)
+_read(pid_t pid, int sockfd, void* buf, const uint count)
 {
 	struct socket *sock;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
@@ -249,7 +249,7 @@ _close(pid_t pid, int sockfd)
 	}
 	rc = sock->ops->close(sock);
 	if (rc == 0) {
-		socket_sockets_remove(sock); /* ½«Æä´ÓsocksÁ´±íÖĞÉ¾³ı */
+		socket_sockets_remove(sock); /* å°†å…¶ä»socksé“¾è¡¨ä¸­åˆ é™¤ */
 		free_socket(sock);
 	}
 	return rc;
@@ -261,7 +261,7 @@ _listen(pid_t pid, int sockfd, int backlog)
 {
 	int err = -1;
 	struct socket *sock;
-	if (!sock || backlog < 0) goto out;
+	if (backlog < 0) goto out;
 	if ((sock = get_socket(pid, sockfd)) == NULL) {
 		print_err("listen: could not find socket (fd %d) for \
 			listening (pid %d)\n",
@@ -294,7 +294,7 @@ int
 	}
 	else {
 		socket_sockets_enqueue(newsock);
-		rc = newsock->fd;	/* ·µ»Ø¶ÔÓ¦µÄÎÄ¼şÃèÊö·û */
+		rc = newsock->fd;	/* è¿”å›å¯¹åº”çš„æ–‡ä»¶æè¿°ç¬¦ */
 	}
 out:
 	return rc;

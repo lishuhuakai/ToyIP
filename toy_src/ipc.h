@@ -41,19 +41,19 @@ struct ipc_msg {
 } __attribute__((packed));
 
 struct ipc_err {
-    int rc;				/* ÓÃÓÚ¼ÇÂ¼º¯ÊıÔËĞĞµÄ½á¹û */
-    int err;			/* ÓÃÓÚ¼ÇÂ¼errno */
+    int rc;				/* ç”¨äºè®°å½•å‡½æ•°è¿è¡Œçš„ç»“æœ */
+    int err;			/* ç”¨äºè®°å½•errno */
     uint8_t data[];
 } __attribute__((packed));
 
-/* ipc_socketÖ÷ÒªÓÃÓÚ´«µİsocketº¯ÊıµÄ²ÎÊı */
+/* ipc_socketä¸»è¦ç”¨äºä¼ é€’socketå‡½æ•°çš„å‚æ•° */
 struct ipc_socket {
     int domain;
     int type;
     int protocol;
 } __attribute__((packed));
 
-/* ipc_connectÖ÷ÒªÓÃÓÚ´«µİconnnectº¯ÊıµÄ²ÎÊı */
+/* ipc_connectä¸»è¦ç”¨äºä¼ é€’connnectå‡½æ•°çš„å‚æ•° */
 struct ipc_connect {
     int sockfd;
     struct sockaddr_in addr;
@@ -61,14 +61,14 @@ struct ipc_connect {
 
 struct ipc_accept {
 	int sockfd;
-	int contain_addr;	/* ÊÇ·ñĞèÒª°üº¬µØÖ·ĞÅÏ¢ */
+	int contain_addr;	/* æ˜¯å¦éœ€è¦åŒ…å«åœ°å€ä¿¡æ¯ */
 	struct sockaddr_in addr;
 } __attribute__((packed));
 
 struct ipc_recvfrom {
 	int sockfd;
 	size_t len;
-	int contain_addr;	/* ÊÇ·ñ°üº¬ÁËµØÖ·ĞÅÏ¢ */
+	int contain_addr;	/* æ˜¯å¦åŒ…å«äº†åœ°å€ä¿¡æ¯ */
 	struct sockaddr_in addr;
 	uint8_t buf[];
 } __attribute__((packed));

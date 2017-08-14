@@ -8,15 +8,15 @@
 
 struct sock;
 
-/* net_pos Ïàµ±ÓÚ½Ó¿Ú,·â×°ÁËÒ»×é²Ù×÷ÍøÂçµÄ·½·¨ */
+/* net_pos ç›¸å½“äºæ¥å£,å°è£…äº†ä¸€ç»„æ“ä½œç½‘ç»œçš„æ–¹æ³• */
 struct net_ops {
 	struct sock* (*alloc_sock)(int protocol);
 	int(*init)(struct sock *sk);
 	int(*connect)(struct sock *sk, const struct sockaddr_in *addr);
-	int(*send_buf)(struct sock *sk, const void *buf, int len);  
-	int(*sendto)(struct sock *sk, const void *buf, int len,const struct sockaddr_in* saddr);
-	int(*recv_buf)(struct sock *sk, void *buf, int len);
-	int(*recvfrom)(struct sock *sk, void *buf, int len, struct sockaddr_in *saddr);
+	int(*send_buf)(struct sock *sk, const void *buf, const uint len);  
+	int(*sendto)(struct sock *sk, const void *buf, const uint len,const struct sockaddr_in* saddr);
+	int(*recv_buf)(struct sock *sk, void *buf, const uint len);
+	int(*recvfrom)(struct sock *sk, void *buf, const uint len, struct sockaddr_in *saddr);
 	int(*bind)(struct sock *, struct sockaddr_in *);
 	int(*recv_notify)(struct sock *sk);
 	int(*close)(struct sock *sk);			
@@ -26,22 +26,22 @@ struct net_ops {
 };
 
 /* sock
-   ĞèÒªËµÃ÷Ò»ÏÂµÄÊÇ,ÔÚ´¦Àí¹ı³ÌÖĞ,sport,dport,sadddrÒÔ¼°daddr´æ´¢µÄ¶¼ÊÇÖ÷»ú×Ö½ÚĞò */
+   éœ€è¦è¯´æ˜ä¸€ä¸‹çš„æ˜¯,åœ¨å¤„ç†è¿‡ç¨‹ä¸­,sport,dport,sadddrä»¥åŠdaddrå­˜å‚¨çš„éƒ½æ˜¯ä¸»æœºå­—èŠ‚åº */
 struct sock {
-	struct list_head link;				/* linkÓò·½±ã½«sockÀ­³ÉÒ»ÕÅÁ´±í */
-	struct socket *sock;				/* socketºÍsockÊÇÏà»¥°üº¬µÄ,¸üÈ·ÇĞµÄËµ,ÊÇÒ»ÌåÁ½Ãæ */ 
-	struct net_ops *ops;				/* ²Ù×İÍøÂçµÄ·½·¨ */
+	struct list_head link;				/* linkåŸŸæ–¹ä¾¿å°†sockæ‹‰æˆä¸€å¼ é“¾è¡¨ */
+	struct socket *sock;				/* socketå’Œsockæ˜¯ç›¸äº’åŒ…å«çš„,æ›´ç¡®åˆ‡çš„è¯´,æ˜¯ä¸€ä½“ä¸¤é¢ */ 
+	struct net_ops *ops;				/* æ“çºµç½‘ç»œçš„æ–¹æ³• */
 	struct wait_lock recv_wait;
-	struct sk_buff_head receive_queue;	/* ½ÓÊÕ¶ÓÁĞ  */
-	struct sk_buff_head write_queue;	/* ·¢ËÍ¶ÓÁĞ  */
- 	pthread_mutex_t lock;				/* ¶àÏß³ÌÏÂĞèÒª¼ÓËø */
-	int protocol;						/* Ğ­Òé */
-	int state;							/* ¼ÇÂ¼ÏÂsockµ±Ç°ËùÔÚ×´Ì¬ */
+	struct sk_buff_head receive_queue;	/* æ¥æ”¶é˜Ÿåˆ—  */
+	struct sk_buff_head write_queue;	/* å‘é€é˜Ÿåˆ—  */
+ 	pthread_mutex_t lock;				/* å¤šçº¿ç¨‹ä¸‹éœ€è¦åŠ é” */
+	int protocol;						/* åè®® */
+	int state;							/* è®°å½•ä¸‹sockå½“å‰æ‰€åœ¨çŠ¶æ€ */
 	int err;		
 	uint16_t sport;				
-	uint16_t dport;						/* ¶Ô·½¶Ë¿ÚºÅ */
-	uint32_t saddr;						/* Ô´ip */
-	uint32_t daddr;						/* ¶Ô¶Ëip */
+	uint16_t dport;						/* å¯¹æ–¹ç«¯å£å· */
+	uint32_t saddr;						/* æºip */
+	uint32_t daddr;						/* å¯¹ç«¯ip */
 };
 
 static inline struct sk_buff*

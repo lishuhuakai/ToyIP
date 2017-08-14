@@ -12,15 +12,15 @@ static struct sk_buff *
 tcp_alloc_skb(int optlen, int size)
 {
 	/*
-	 optlen±íÊ¾tcpÊ×²¿Ñ¡ÏîµÄ´óĞ¡
-	 ÕâÀïÒªÌØ±ğ×¢ÒâÒ»ÏÂ,ÒòÎªÍü¼ÇÁËTCP_HDR_LENµ¼ÖÂ³ö´í
+	 optlenè¡¨ç¤ºtcpé¦–éƒ¨é€‰é¡¹çš„å¤§å°
+	 è¿™é‡Œè¦ç‰¹åˆ«æ³¨æ„ä¸€ä¸‹,å› ä¸ºå¿˜è®°äº†TCP_HDR_LENå¯¼è‡´å‡ºé”™
 	 */
-	int reserved = ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN + optlen + size; /* ==> ÕâÀïµÄÒ»¸ö´íÎóÅªµÃÎÒºÃ¿à! */
+	int reserved = ETH_HDR_LEN + IP_HDR_LEN + TCP_HDR_LEN + optlen + size; /* ==> è¿™é‡Œçš„ä¸€ä¸ªé”™è¯¯å¼„å¾—æˆ‘å¥½è‹¦! */
 	struct sk_buff *skb = alloc_skb(reserved);
 
-	skb_reserve(skb, reserved); /* skb->data²¿·ÖÁô³öreserved¸ö×Ö½Ú */
+	skb_reserve(skb, reserved); /* skb->dataéƒ¨åˆ†ç•™å‡ºreservedä¸ªå­—èŠ‚ */
 	skb->protocol = IP_TCP;
-	skb->dlen = size;	/* dlen±íÊ¾Êı¾İµÄ´óĞ¡ */
+	skb->dlen = size;	/* dlenè¡¨ç¤ºæ•°æ®çš„å¤§å° */
 
 	return skb;
 }
@@ -54,28 +54,28 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
 	struct tcb *tcb = &tsk->tcb;
-	struct tcphdr *thdr = tcp_hdr(skb);  /* tcpÍ·²¿ĞÅÏ¢ */
+	struct tcphdr *thdr = tcp_hdr(skb);  /* tcpå¤´éƒ¨ä¿¡æ¯ */
 
 	if (thdr->hl == 0) thdr->hl = TCP_DOFFSET;
 
-	skb_push(skb, thdr->hl * 4); /* hl±íÊ¾tcpÍ·²¿´óĞ¡ */
+	skb_push(skb, thdr->hl * 4); /* hlè¡¨ç¤ºtcpå¤´éƒ¨å¤§å° */
 
-	/* Ìî³äÍ·²¿ĞÅÏ¢ */
+	/* å¡«å……å¤´éƒ¨ä¿¡æ¯ */
 	thdr->sport = sk->sport;
 	thdr->dport = sk->dport;
-	thdr->seq = seq;		/* ·Ö×éµÄĞòºÅ */
-	thdr->ack_seq = tcb->rcv_nxt; /* Ğ¯´øÒ»¸öÈ·ÈÏĞòºÅ */
-	thdr->win = tcb->rcv_wnd;	  /* ½ÓÊÕ´°¿ÚµÄ´óĞ¡ */
+	thdr->seq = seq;		/* åˆ†ç»„çš„åºå· */
+	thdr->ack_seq = tcb->rcv_nxt; /* æºå¸¦ä¸€ä¸ªç¡®è®¤åºå· */
+	thdr->win = tcb->rcv_wnd;	  /* æ¥æ”¶çª—å£çš„å¤§å° */
 	thdr->csum = 0;
 	thdr->urp = 0;
 	thdr->rsvd = 0;
 
 	tcp_out_dbg(thdr, sk, skb);
 
-	/* ¼ÇÂ¼ÏÂÒª´«µİµÄÊı¾İ°üµÄÆğÊ¼ºÍÖÕÖ¹ĞòºÅ,ÕâÀïÖ÷ÒªÊÇÎªÁË·½±ãºóÃæµÄÖØ´«
-	 ¾ßÌå¿ÉÒÔ²Î¼ûtcp_input.c --> tcp_clean_retransmission_queue º¯Êı. */
+	/* è®°å½•ä¸‹è¦ä¼ é€’çš„æ•°æ®åŒ…çš„èµ·å§‹å’Œç»ˆæ­¢åºå·,è¿™é‡Œä¸»è¦æ˜¯ä¸ºäº†æ–¹ä¾¿åé¢çš„é‡ä¼ 
+	 å…·ä½“å¯ä»¥å‚è§tcp_input.c --> tcp_clean_retransmission_queue å‡½æ•°. */
 	skb->seq = tcb->snd_una;
-	skb->end_seq = tcb->snd_una + skb->dlen; /* ÖÕÖ¹ĞòÁĞºÅ */
+	skb->end_seq = tcb->snd_una + skb->dlen; /* ç»ˆæ­¢åºåˆ—å· */
 
 	thdr->sport = htons(thdr->sport);
 	thdr->dport = htons(thdr->dport);
@@ -84,9 +84,9 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 	thdr->win = htons(thdr->win);
 	thdr->csum = htons(thdr->csum);
 	thdr->urp = htons(thdr->urp);
-	// tcpÊ×²¿µÄ¼ìÑéºÍ,ĞèÒª¼ìÑéÊ×²¿ºÍÊı¾İ,ÔÚ¼ÆËã¼ìÑéºÍÊ±,ÒªÔÚTCP±¨ÎÄ¶ÎµÄÇ°Ãæ¼ÓÉÏ12×Ö½ÚÎ±Ê×²¿
+	// tcpé¦–éƒ¨çš„æ£€éªŒå’Œ,éœ€è¦æ£€éªŒé¦–éƒ¨å’Œæ•°æ®,åœ¨è®¡ç®—æ£€éªŒå’Œæ—¶,è¦åœ¨TCPæŠ¥æ–‡æ®µçš„å‰é¢åŠ ä¸Š12å­—èŠ‚ä¼ªé¦–éƒ¨
 	/*
-		TCPÎ±Ê×²¿
+		TCPä¼ªé¦–éƒ¨
 	          4                     4              1     1       2
 	   +--------------------+-------------------+-----+-----+----------+
 	   | saddr              | daddr             | 0   | 6   | len      |
@@ -99,14 +99,14 @@ tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, uint32_t seq)
 }
 
 /**\
- * tcp_queue_transmit_skb ½«Òª·¢ËÍµÄÄÚÈİ¼ÓÈëwrite_queue,Ã»ÓĞ½ÓÊÜµ½ackµÄ»°,»áÒ»Ö±ÖØ
- * ´«¸ÃÊı¾İ°ü,¶øtcp_transmit_skbº¯Êı²»»áÈç´Ë. 
+ * tcp_queue_transmit_skb å°†è¦å‘é€çš„å†…å®¹åŠ å…¥write_queue,æ²¡æœ‰æ¥æ”¶åˆ°ackçš„è¯,ä¼šä¸€ç›´é‡
+ * ä¼ è¯¥æ•°æ®åŒ…,è€Œtcp_transmit_skbå‡½æ•°ä¸ä¼šå¦‚æ­¤. 
 \**/
 static int
 tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tsk = tcp_sk(sk);
-	struct tcb *tcb = &tsk->tcb;  /* ´«Êä¿ØÖÆ¿é */
+	struct tcb *tcb = &tsk->tcb;  /* ä¼ è¾“æ§åˆ¶å— */
 	int rc = 0;
 
 	pthread_mutex_lock(&sk->write_queue.lock);
@@ -115,8 +115,8 @@ tcp_queue_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		tcp_reset_retransmission_timer(tsk);
 	}
 
-	skb_queue_tail(&sk->write_queue, skb);	/* ½«skb¼ÓÈëµ½·¢ËÍ¶ÓÁĞµÄÎ²²¿ */
-	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt); /* Ê×ÏÈ½«Êı¾İ·¢ËÍÒ»±é */
+	skb_queue_tail(&sk->write_queue, skb);	/* å°†skbåŠ å…¥åˆ°å‘é€é˜Ÿåˆ—çš„å°¾éƒ¨ */
+	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt); /* é¦–å…ˆå°†æ•°æ®å‘é€ä¸€é */
 	tcb->snd_nxt += skb->dlen;
 	pthread_mutex_unlock(&sk->write_queue.lock);
 	return rc;
@@ -140,7 +140,7 @@ tcp_send_synack(struct sock *sk)
 
 	th->syn = 1;
 	th->ack = 1;
-	/* ²»ÏûºÄĞòÁĞºÅ */
+	/* ä¸æ¶ˆè€—åºåˆ—å· */
 	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt);
 	free_skb(skb);
 
@@ -159,7 +159,7 @@ tcp_send_delack(uint32_t ts, void *arg)
 }
 
 /**\
- * tcp_send_ack ·¢ËÍack.
+ * tcp_send_ack å‘é€ack.
 \**/
 int
 tcp_send_ack(struct sock *sk)
@@ -172,9 +172,9 @@ tcp_send_ack(struct sock *sk)
 	struct tcb *tcb = &tcp_sk(sk)->tcb;
 	int rc = 0;
 
-	skb = tcp_alloc_skb(0, 0);  /* ĞèÒªÖØĞÂ·ÖÅäÊı¾İ¿é,²»°üº¬tcpÑ¡Ïî,²»°üº¬Êı¾İ */
+	skb = tcp_alloc_skb(0, 0);  /* éœ€è¦é‡æ–°åˆ†é…æ•°æ®å—,ä¸åŒ…å«tcpé€‰é¡¹,ä¸åŒ…å«æ•°æ® */
 
-	th = tcp_hdr(skb); /* thÖ¸ÏòÒª·¢ËÍÊı¾İµÄtcpÍ·²¿ */
+	th = tcp_hdr(skb); /* thæŒ‡å‘è¦å‘é€æ•°æ®çš„tcpå¤´éƒ¨ */
 	th->ack = 1;
 
 	rc = tcp_transmit_skb(sk, skb, tcb->snd_nxt);
@@ -196,12 +196,12 @@ tcp_send_syn(struct sock *sk)
 	struct tcp_options opts = { 0 };
 	int tcp_options_len = 0;
 
-	tcp_options_len = tcp_syn_options(sk, &opts);	/* tcpÑ¡ÏîµÄ³¤¶È */
-	skb = tcp_alloc_skb(tcp_options_len, 0); /* ĞèÒª·¢ËÍtcpÑ¡Ïî */
-	th = tcp_hdr(skb);		/* Ö¸ÏòtcpÍ·²¿ */
+	tcp_options_len = tcp_syn_options(sk, &opts);	/* tcpé€‰é¡¹çš„é•¿åº¦ */
+	skb = tcp_alloc_skb(tcp_options_len, 0); /* éœ€è¦å‘é€tcpé€‰é¡¹ */
+	th = tcp_hdr(skb);		/* æŒ‡å‘tcpå¤´éƒ¨ */
 
 	tcp_write_options(th, &opts, tcp_options_len);
-	sk->state = TCP_SYN_SENT;  /* ¿Í»§¶Ë·¢ËÍÁËsynÖ®ºó,½øÈësyn_sent×´Ì¬ */
+	sk->state = TCP_SYN_SENT;  /* å®¢æˆ·ç«¯å‘é€äº†synä¹‹å,è¿›å…¥syn_sentçŠ¶æ€ */
 	th->syn = 1;
 
 	return tcp_queue_transmit_skb(sk, skb);
@@ -254,10 +254,10 @@ tcp_connect_rto(uint32_t ts, void *arg)
 	tcp_release_retransmission_timer(tsk);
 
 	if (sk->state != TCP_ESTABLISHED) {
-		if (tsk->backoff > TCP_CONN_RETRIES) { /* Èç¹ûÍË±ÜµÄ´ÎÊı¹ı¶à,±íÊ¾Á¬½Ó²»Í¨,
-											   ÒªÍ¨ÖªÉÏ²ã. */
-			tsk->sk.err = -ETIMEDOUT;  /* ³¬Ê± */
-			// tofix: Òª½«sk´ÓÁ´±íÖĞÒÆ³ı
+		if (tsk->backoff > TCP_CONN_RETRIES) { /* å¦‚æœé€€é¿çš„æ¬¡æ•°è¿‡å¤š,è¡¨ç¤ºè¿æ¥ä¸é€š,
+											   è¦é€šçŸ¥ä¸Šå±‚. */
+			tsk->sk.err = -ETIMEDOUT;  /* è¶…æ—¶ */
+			// tofix: è¦å°†skä»é“¾è¡¨ä¸­ç§»é™¤
 			tcp_free_sock(sk);
 		}
 		else {
@@ -283,8 +283,8 @@ tcp_connect_rto(uint32_t ts, void *arg)
 
 
 /**\
- * tcp_retransmission_timeout Èç¹ûÔÚ¹æ¶¨µÄÊ±¼äÄÚ»¹Ã»ÓĞÊÕµ½tcpÊı¾İ±¨µÄÈ·ÈÏ,ÄÇÃ´ÒªÖØ´«
- * ¸ÃÊı¾İ°ü. 
+ * tcp_retransmission_timeout å¦‚æœåœ¨è§„å®šçš„æ—¶é—´å†…è¿˜æ²¡æœ‰æ”¶åˆ°tcpæ•°æ®æŠ¥çš„ç¡®è®¤,é‚£ä¹ˆè¦é‡ä¼ 
+ * è¯¥æ•°æ®åŒ…. 
 \**/
 static void
 tcp_retransmission_timeout(uint32_t ts, void *arg)
@@ -308,7 +308,7 @@ tcp_retransmission_timeout(uint32_t ts, void *arg)
 	skb_reset_header(skb);
 
 	tcp_transmit_skb(sk, skb, tcb->snd_una);
-	/* Ã¿¸ö500¸öÊ±¼äµ¥Î»¼ì²éÒ»´Î. */
+	/* æ¯ä¸ª500ä¸ªæ—¶é—´å•ä½æ£€æŸ¥ä¸€æ¬¡. */
 	tsk->retransmit = timer_add(500, &tcp_retransmission_timeout, tsk);
 
 	if (th->fin) {
@@ -321,19 +321,19 @@ unlock:
 
 
 /**\
- * tcp_reset_retransmission_timer ÓÃÓÚÖØĞÂÉèÖÃÖØ´«¶¨Ê±Æ÷.
+ * tcp_reset_retransmission_timer ç”¨äºé‡æ–°è®¾ç½®é‡ä¼ å®šæ—¶å™¨.
 \**/
 void
 tcp_reset_retransmission_timer(struct tcp_sock *tsk)
 {
 	struct sock *sk = &tsk->sk;
-	tcp_release_retransmission_timer(tsk);	/* ÊÍ·ÅµôÖ®Ç°µÄÖØ´«¶¨Ê±Æ÷ */
+	tcp_release_retransmission_timer(tsk);	/* é‡Šæ”¾æ‰ä¹‹å‰çš„é‡ä¼ å®šæ—¶å™¨ */
 
-	if (sk->state == TCP_SYN_SENT) {	/* backoff Ã²ËÆÊÇÍË±ÜÊ±¼ä */
+	if (sk->state == TCP_SYN_SENT) {	/* backoff è²Œä¼¼æ˜¯é€€é¿æ—¶é—´ */
 		tsk->retransmit = timer_add(TCP_SYN_BACKOFF << tsk->backoff, &tcp_connect_rto, tsk);
 	}
 	else {
-		/* 500Ãë³¬Ê±ÖØ´« */
+		/* 500ç§’è¶…æ—¶é‡ä¼  */
 		tsk->retransmit = timer_add(500, &tcp_retransmission_timeout, tsk);
 	}
 }
@@ -346,7 +346,7 @@ tcp_begin_connect(struct sock *sk)
 	int rc = 0;
 
 	tsk->tcp_header_len = sizeof(struct tcphdr);
-	tcb->isn = tcp_generate_isn();  /* isnÊÇËæ»ú²úÉúµÄÒ»¸öĞòÁĞºÅ */
+	tcb->isn = tcp_generate_isn();  /* isnæ˜¯éšæœºäº§ç”Ÿçš„ä¸€ä¸ªåºåˆ—å· */
 	tcb->snd_wnd = 0;
 	tcb->snd_wl1 = 0;
 
@@ -355,15 +355,15 @@ tcp_begin_connect(struct sock *sk)
 	tcb->snd_nxt = tcb->isn;
 	tcb->rcv_nxt = 0;
 
-	tcp_select_initial_window(&tsk->tcb.rcv_wnd); /* ½ÓÊÕ´°¿ÚµÄ´óĞ¡ */
+	tcp_select_initial_window(&tsk->tcb.rcv_wnd); /* æ¥æ”¶çª—å£çš„å¤§å° */
 
-	rc = tcp_send_syn(sk);  /* tcp_send_syn¿ÉÄÜÓÉÓÚÔİÊ±ÕÒ²»µ½ÒÔÌ«ÍøµØÖ·µÄÔ­Òò·¢ËÍÊ§°Ü
-							µ«ÊÇ´æÔÚ¶¨Ê±Æ÷,¸ôÒ»¶ÎÊ±¼äÔÙ´Î³¢ÊÔ·¢ËÍ. */
-	tcb->snd_nxt++;  /* ÏûºÄÒ»¸öĞòÁĞºÅ */
+	rc = tcp_send_syn(sk);  /* tcp_send_synå¯èƒ½ç”±äºæš‚æ—¶æ‰¾ä¸åˆ°ä»¥å¤ªç½‘åœ°å€çš„åŸå› å‘é€å¤±è´¥
+							ä½†æ˜¯å­˜åœ¨å®šæ—¶å™¨,éš”ä¸€æ®µæ—¶é—´å†æ¬¡å°è¯•å‘é€. */
+	tcb->snd_nxt++;  /* æ¶ˆè€—ä¸€ä¸ªåºåˆ—å· */
 	return rc;
 }
 
-/* tcp_send ·¢ËÍtcpÊı¾İ */
+/* tcp_send å‘é€tcpæ•°æ® */
 int 
 tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 {
@@ -374,10 +374,10 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 	int dlen = 0;
 
 	while (slen > 0) {
-		dlen = slen > mss ? mss : slen; /* Ò»¸ötcp±¨ÎÄ×î¶àÖ»ÄÜ·¢ËÍmss¸ö×Ö½ÚtcpÊı¾İ */
+		dlen = slen > mss ? mss : slen; /* ä¸€ä¸ªtcpæŠ¥æ–‡æœ€å¤šåªèƒ½å‘é€mssä¸ªå­—èŠ‚tcpæ•°æ® */
 		slen -= dlen;
 
-		skb = tcp_alloc_skb(0, dlen); /* tcpÍ·²¿Ñ¡Ïî0×Ö½Ú,Êı¾İ´óĞ¡dlen×Ö½Ú */
+		skb = tcp_alloc_skb(0, dlen); /* tcpå¤´éƒ¨é€‰é¡¹0å­—èŠ‚,æ•°æ®å¤§å°dlenå­—èŠ‚ */
 		skb_push(skb, dlen);
 		memcpy(skb->data, buf, dlen);
 
@@ -386,8 +386,8 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 		th->ack = 1;
 
 		if (slen == 0) {
-			th->psh = 1;	/*½«ÍÆËÍ±êÖ¾bitÖÃÎª1,±íÊ¾½ÓÊÕ·½Ò»µ©½ÓÊÕµ½Õâ¸ö±¨ÎÄ,
-							¾ÍÓ¦¸Ã¾¡¿ì½«Êı¾İÍÆËÍ¸øÓ¦ÓÃ³ÌĞò */
+			th->psh = 1;	/*å°†æ¨é€æ ‡å¿—bitç½®ä¸º1,è¡¨ç¤ºæ¥æ”¶æ–¹ä¸€æ—¦æ¥æ”¶åˆ°è¿™ä¸ªæŠ¥æ–‡,
+							å°±åº”è¯¥å°½å¿«å°†æ•°æ®æ¨é€ç»™åº”ç”¨ç¨‹åº */
 		}
 
 		if (tcp_queue_transmit_skb(&tsk->sk, skb) == -1) {
@@ -397,7 +397,7 @@ tcp_send(struct tcp_sock *tsk, const void *buf, int len)
 	return len;
 }
 
-/* tcp_send_reset Ïò¶Ô¶Ë·¢ËÍrst */
+/* tcp_send_reset å‘å¯¹ç«¯å‘é€rst */
 int
 tcp_send_reset(struct tcp_sock *tsk)
 {
@@ -413,7 +413,7 @@ tcp_send_reset(struct tcp_sock *tsk)
 	th->rst = 1;
 	tcb->snd_una = tcb->snd_nxt;
 
-	/* rst ²¢²»ÏûºÄĞòÁĞºÅ */
+	/* rst å¹¶ä¸æ¶ˆè€—åºåˆ—å· */
 	rc = tcp_transmit_skb(&tsk->sk, skb, tcb->snd_nxt);
 	free_skb(skb);
 	return rc;
@@ -427,17 +427,17 @@ tcp_queue_fin(struct sock *sk)
 	struct tcb *tcb = &tcp_sk(sk)->tcb;
 	int rc = 0;
 
-	skb = tcp_alloc_skb(0, 0);  /* ĞèÒªÖØĞÂ·ÖÅäÊı¾İ¿é,²»°üº¬tcpÑ¡Ïî,²»°üº¬Êı¾İ */
+	skb = tcp_alloc_skb(0, 0);  /* éœ€è¦é‡æ–°åˆ†é…æ•°æ®å—,ä¸åŒ…å«tcpé€‰é¡¹,ä¸åŒ…å«æ•°æ® */
 	th = tcp_hdr(skb);
 
 	th->fin = 1;
 	th->ack = 1;
 
 	tcp_sock_dbg("Queueing fin", sk);
-	/* µ÷ÓÃtcp_queue_transmit_skb,Èç¹ûÃ»ÓĞ¼°Ê±ÊÕµ½¶Ô·½¶Ô¸ÃÊı¾İ±¨µÄack,»áÖØ´«¸ÃÊı¾İ°ü */
+	/* è°ƒç”¨tcp_queue_transmit_skb,å¦‚æœæ²¡æœ‰åŠæ—¶æ”¶åˆ°å¯¹æ–¹å¯¹è¯¥æ•°æ®æŠ¥çš„ack,ä¼šé‡ä¼ è¯¥æ•°æ®åŒ… */
 	rc = tcp_queue_transmit_skb(sk, skb);
-	/* TCP¹æ¶¨,fin±¨ÎÄ¼´Ê¹²»Ğ¯´øÊı¾İ,ËüÒ²ÒªÏûºÄµôÒ»¸öĞòºÅ */
-	tcb->snd_nxt++;	/* finÏûºÄÒ»¸öĞòÁĞºÅ */
+	/* TCPè§„å®š,finæŠ¥æ–‡å³ä½¿ä¸æºå¸¦æ•°æ®,å®ƒä¹Ÿè¦æ¶ˆè€—æ‰ä¸€ä¸ªåºå· */
+	tcb->snd_nxt++;	/* finæ¶ˆè€—ä¸€ä¸ªåºåˆ—å· */
 
 	return rc;
 }

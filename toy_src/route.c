@@ -20,8 +20,8 @@ route_alloc(uint32_t dst, uint32_t gateway, uint32_t netmask,
 {
 	struct rtentry *rt = malloc(sizeof(struct rtentry));
 	list_init(&rt->list);
-	rt->dst = dst;		// Ä¿µÄµØÖ·
-	rt->gateway = gateway;
+	rt->dst = dst;		   /* ç›®çš„åœ°å€ */
+	rt->gateway = gateway; /* ç½‘å…³ */
 	rt->netmask = netmask;
 	rt->flags = flags;
 	rt->metric = metric;
@@ -30,17 +30,17 @@ route_alloc(uint32_t dst, uint32_t gateway, uint32_t netmask,
 }
 
 /**\
- * route_add Ìí¼ÓÂ·ÓÉÏî.
+ * route_add æ·»åŠ è·¯ç”±é¡¹.
 \**/
 void 
 route_add(uint32_t dst, uint32_t gateway, uint32_t netmask, uint8_t flags,
 	uint32_t metric, struct netdev *dev)
 {
-	// dst Ä¿µÄÍø¶Î
-	// gateway Íø¹Ø
-	// netmask ×ÓÍøÑÚÂë
+	// dst ç›®çš„ç½‘æ®µ
+	// gateway ç½‘å…³
+	// netmask å­ç½‘æŽ©ç 
 	struct rtentry *rt = route_alloc(dst, gateway, netmask, flags, metric, dev);
-	list_add_tail(&rt->list, &routes);  // Ìí¼Óµ½Î²²¿
+	list_add_tail(&rt->list, &routes);  // æ·»åŠ åˆ°å°¾éƒ¨
 }
 
 void 
@@ -48,11 +48,11 @@ route_init()
 {
 	route_add(loop->addr, 0, 0xff000000, RT_LOOPBACK, 0, loop);  // 127.0.0.1
 	route_add(netdev->addr, 0, 0xffffff00, RT_HOST, 0, netdev);	 // 10.0.1.4
-	route_add(0, ip_parse(tapaddr), 0, RT_GATEWAY, 0, netdev); // Ä¬ÈÏµÄÍø¹Ø
+	route_add(0, ip_parse(tapaddr), 0, RT_GATEWAY, 0, netdev);   // é»˜è®¤çš„ç½‘å…³
 }
 
 /**\
- * route_lookup ´ÓÂ·ÓÉ±íÖÐ²éÕÒÂ·ÓÉ.
+ * route_lookup ä»Žè·¯ç”±è¡¨ä¸­æŸ¥æ‰¾è·¯ç”±.
 \**/
 struct rtentry  *
 	route_lookup(uint32_t daddr)
@@ -63,7 +63,7 @@ struct rtentry  *
 	list_for_each(item, &routes) {
 		rt = list_entry(item, struct rtentry, list);
 		if ((rt->netmask & daddr) == rt->dst) break;
-		/* Èç¹û²»ÄÜÆ¥ÅäµÄ»°,ÎÒÃÇÄ¬ÈÏÊ¹ÓÃ×îºóÒ»¸öÏî,Ò²¾ÍÊÇÍø¹Ø */
+		/* å¦‚æžœä¸èƒ½åŒ¹é…çš„è¯,æˆ‘ä»¬é»˜è®¤ä½¿ç”¨æœ€åŽä¸€ä¸ªé¡¹,ä¹Ÿå°±æ˜¯ç½‘å…³ */
 	}
 	return rt;
 }

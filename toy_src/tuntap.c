@@ -6,13 +6,13 @@
 static int tun_fd;
 static char* dev;
 
-char *tapaddr = "10.0.1.5";		/* tapÉè±¸µÄµØÖ· */
+char *tapaddr = "10.0.1.5";		/* tapè®¾å¤‡çš„åœ°å€ */
 char *taproute = "10.0.1.0/24";
-char *stackaddr = "10.0.1.4";   /* ±¾Ğ­ÒéÕ»Ä£ÄâµÄipµØÖ· */
+char *stackaddr = "10.0.1.4";   /* æœ¬åè®®æ ˆæ¨¡æ‹Ÿçš„ipåœ°å€ */
 
 
 /**\
- * set_stack_attribute ¿ÉÒÔ×÷Îªset_if_up ºÍ set_if_addressÁ½¸öº¯ÊıµÄÌæ´ú¡£
+ * set_stack_attribute å¯ä»¥ä½œä¸ºset_if_up å’Œ set_if_addressä¸¤ä¸ªå‡½æ•°çš„æ›¿ä»£ã€‚
 \**/
 static int
 set_stack_attribute(char *dev)
@@ -34,21 +34,21 @@ set_stack_attribute(char *dev)
 		return -1;
 	}
 
-	// ifconfig tap0 10.0.1.5 #Éè¶¨ipµØÖ·
+	// ifconfig tap0 10.0.1.5 #è®¾å®šipåœ°å€
 	if ((err = ioctl(sockfd, SIOCSIFADDR, (void *)&ifr)) < 0) {
 		perror("ioctl SIOSIFADDR");
 		goto done;
 	}
 
-	/* »ñµÃ½Ó¿ÚµÄ±êÖ¾ */
+	/* è·å¾—æ¥å£çš„æ ‡å¿— */
 	if ((err = ioctl(sockfd, SIOCGIFFLAGS, (void *)&ifr)) < 0) {
 		perror("ioctl SIOCGIFADDR");
 		goto done;
 	}
 
-	/* ÉèÖÃ½Ó¿ÚµÄ±êÖ¾ */
+	/* è®¾ç½®æ¥å£çš„æ ‡å¿— */
 	ifr.ifr_flags |= IFF_UP;
-	// ifup tap0 #Æô¶¯Éè±¸
+	// ifup tap0 #å¯åŠ¨è®¾å¤‡
 	if ((err = ioctl(sockfd, SIOCSIFFLAGS, (void *)&ifr)) < 0) {
 		perror("ioctl SIOCSIFFLAGS");
 		goto done;
@@ -56,7 +56,7 @@ set_stack_attribute(char *dev)
 
 	inet_pton(AF_INET, "255.255.255.0", &addr.sin_addr);
 	bcopy(&addr, &ifr.ifr_netmask, sizeof(addr));
-	// ifconfig tap0 10.0.1.5/24 #Éè¶¨×ÓÍøÑÚÂë
+	// ifconfig tap0 10.0.1.5/24 #è®¾å®šå­ç½‘æ©ç 
 	if ((err = ioctl(sockfd, SIOCSIFNETMASK, (void *) &ifr)) < 0) {
 		perror("ioctl SIOCSIFNETMASK");
 		goto done;
@@ -72,21 +72,21 @@ static int
 set_if_route(char *dev, char *cidr)
 {
 	// ip route add 10.0.1.0/24 dev tap0
-	// #Ìí¼ÓÂ·ÓÉ£¬ËùÓĞÄ¿µÄµØÖ·ÊÇ10.0.1.0/24Íø¶ÎµÄÊı¾İ°ü¶¼´«µİ¸øtap0½Ó¿Ú
+	// #æ·»åŠ è·¯ç”±ï¼Œæ‰€æœ‰ç›®çš„åœ°å€æ˜¯10.0.1.0/24ç½‘æ®µçš„æ•°æ®åŒ…éƒ½ä¼ é€’ç»™tap0æ¥å£
 	return run_cmd("ip route add %s dev %s", cidr, dev);
 }
 
 static int 
 set_if_address(char *dev, char *cidr)
 {
-	// ip address add dev tap0 10.0.1.5/24 # Ìí¼ÓÂ·ÓÉĞÅÏ¢
+	// ip address add dev tap0 10.0.1.5/24 # æ·»åŠ è·¯ç”±ä¿¡æ¯
 	return run_cmd("ip address add dev %s local 10.0.1.5/24", dev, cidr);
 }
 
 static int 
 set_if_up(char* dev)
 {
-	// ip link set dev tap0 up  # Æô¶¯Éè±¸
+	// ip link set dev tap0 up  # å¯åŠ¨è®¾å¤‡
 	return run_cmd("ip link set dev %s up", dev);
 }
 
@@ -101,7 +101,7 @@ tun_alloc(char *dev)
 			"'$ mknod /dev/net/tap c 10 200'");
 		exit(1);
 	}
-	CLEAR(ifr);  /* Çå¿Õ */
+	CLEAR(ifr);  /* æ¸…ç©º */
 
 	/* Flags: IFF_TUN	- TUN device (no Ethernet headers)
 	 *		  IFF_TAP	- TAP device
@@ -138,7 +138,7 @@ tun_write(char *buf, int len)
 void 
 tun_init()
 {
-	dev = calloc(10, 1); /* ·ÖÅä10¸ö³¤¶ÈÎª1¸ö×Ö½ÚµÄ¿Õ¼ä¸ødev */
+	dev = calloc(10, 1); /* åˆ†é…10ä¸ªé•¿åº¦ä¸º1ä¸ªå­—èŠ‚çš„ç©ºé—´ç»™dev */
 	tun_fd = tun_alloc(dev);
 
 	//set_stack_attribute(dev);

@@ -3,16 +3,16 @@
 #include "list.h"
 
 struct sk_buff *
-alloc_skb(unsigned int size)
+alloc_skb(uint size)
 {
 	struct sk_buff *skb = malloc(sizeof(struct sk_buff));
 	memset(skb, 0, sizeof(struct sk_buff));
-	skb->data = malloc(size);    /* ¼ÇÂ¼ÏÂÊı¾İ */
+	skb->data = malloc(size);    /* è®°å½•ä¸‹æ•°æ® */
 	memset(skb->data, 0, size);
 
 	skb->refcnt = 0;
-	skb->head = skb->data;       /* Êı¾İ¿ªÊ¼µÄµØ·½ */
-	skb->end = skb->data + size; /* Êı¾İ½áÊøµÄµØ·½ */
+	skb->head = skb->data;       /* æ•°æ®å¼€å§‹çš„åœ°æ–¹ */
+	skb->end = skb->data + size; /* æ•°æ®ç»“æŸçš„åœ°æ–¹ */
 	list_init(&skb->list);
 	return skb;
 }
@@ -27,27 +27,27 @@ free_skb(struct sk_buff *skb)
 }
 
 /**\
- * skb_reserve¶ªÆúµôÇ°len¸öÊı¾İ,»òÕßËµÊÇ±£ÁôÇ°Ãæ³¤¶ÈÎªlenµÄÊı¾İ.
+ * skb_reserveä¸¢å¼ƒæ‰å‰lenä¸ªæ•°æ®,æˆ–è€…è¯´æ˜¯ä¿ç•™å‰é¢é•¿åº¦ä¸ºlençš„æ•°æ®.
 \**/
 void *
-skb_reserve(struct sk_buff *skb, unsigned int len)
+skb_reserve(struct sk_buff *skb, uint len)
 {
 	skb->data += len;
 	return skb->data;
 }
 
 uint8_t *
-skb_push(struct sk_buff *skb, unsigned int len)
+skb_push(struct sk_buff *skb, uint len)
 {
-	skb->data -= len;  /* ÕâÖÖÊı¾İÌîÈëµÄ·½Ê½ºÜÓĞÒâË¼ */
+	skb->data -= len;  /* è¿™ç§æ•°æ®å¡«å…¥çš„æ–¹å¼å¾ˆæœ‰æ„æ€ */
 	skb->len += len;
-	return skb->data;  /* ·µ»ØÊı¾İµÄÊ×µØÖ· */
+	return skb->data;  /* è¿”å›æ•°æ®çš„é¦–åœ°å€ */
 }
 
 uint8_t *
 skb_head(struct sk_buff *skb)
 {
-	return skb->head;		/* headÖ¸ÏòÊı¾İµÄÊ×²¿ */
+	return skb->head;		/* headæŒ‡å‘æ•°æ®çš„é¦–éƒ¨ */
 }
 
 void 

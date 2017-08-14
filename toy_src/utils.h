@@ -9,7 +9,7 @@ int run_cmd(char *cmd, ...);
 
 void print_err(char *str, ...);
 uint32_t parse_ipv4_string(char* addr);
-/* 将字符串形式的ip转换为网络字节序形式的ip地址 */
+/* 灏嗗瓧绗︿覆褰㈠紡鐨刬p杞崲涓虹綉缁滃瓧鑺傚簭褰㈠紡鐨刬p鍦板潃 */
 uint32_t ip_pton(char *addr);
 
 /* start wrapper function */

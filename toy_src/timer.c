@@ -3,19 +3,19 @@
 #include "socket.h"
 
 static LIST_HEAD(timers);
-static int tick = 0;
+static uint tick = 0;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void 
 timer_free(struct timer *t)
 {
-	if (pthread_mutex_trylock(&lock) != 0) { // Èç¹ûËø±»Õ¼ÓÃÁË,Ò²¾ÍÊÇÔİÊ±»¹²»ÄÜÊÍ·Å
+	if (pthread_mutex_trylock(&lock) != 0) { // å¦‚æœé”è¢«å ç”¨äº†,ä¹Ÿå°±æ˜¯æš‚æ—¶è¿˜ä¸èƒ½é‡Šæ”¾
 		perror("Timer free mutex lock");
 		return;
 	}
 	list_del(&t->list);
 	free(t);
-	pthread_mutex_unlock(&lock);  // ½âËø
+	pthread_mutex_unlock(&lock);  // è§£é”
 }
 
 static struct timer *
@@ -31,8 +31,8 @@ timers_tick()
 	struct list_head *item, *tmp = NULL;
 	struct timer *t = NULL;
 
-    list_for_each_safe(item, tmp, &timers) {	/* ±éÀúÃ¿¸ötimer(¶¨Ê±Æ÷),Èç¹û
-												µ½ÆÚ,ÔòÖ´ĞĞ,¹ıÆÚ»òÕßÈ¡Ïû,ÔòÊÍ·Å.*/
+    list_for_each_safe(item, tmp, &timers) {	/* éå†æ¯ä¸ªtimer(å®šæ—¶å™¨),å¦‚æœ
+												åˆ°æœŸ,åˆ™æ‰§è¡Œ,è¿‡æœŸæˆ–è€…å–æ¶ˆ,åˆ™é‡Šæ”¾.*/
         t = list_entry(item, struct timer, list);
 
         if (!t->cancelled && t->expires < tick) {
@@ -53,7 +53,7 @@ timer_add(uint32_t expire, void (*handler)(uint32_t, void*), void *arg)
 	t->refcnt = 1;
 	t->expires = tick + expire;
 	t->cancelled = 0;
-	// ÕâÖÖÏÖÏóÓ¦¸Ã³öÏÖµÃ²»¶à°É.
+	// è¿™ç§ç°è±¡åº”è¯¥å‡ºç°å¾—ä¸å¤šå§.
 	if (t->expires < tick) {
 		print_err("ERR: Timer expiry integer wrap aroud\n");
 	}
@@ -61,9 +61,9 @@ timer_add(uint32_t expire, void (*handler)(uint32_t, void*), void *arg)
 	t->handler = handler;
 	t->arg = arg;
 	pthread_mutex_lock(&lock);
-	// ÒòÎªÒª¶Ôlist½øĞĞ²Ù×÷,ËùÒÔÒª¼ÓËø
-	// ²åÈëµÄË³Ğò²»Òª½ô
-	list_add_tail(&t->list, &timers); // ½«tÌí¼Óµ½timersµÄºóÃæ
+	// å› ä¸ºè¦å¯¹listè¿›è¡Œæ“ä½œ,æ‰€ä»¥è¦åŠ é”
+	// æ’å…¥çš„é¡ºåºä¸è¦ç´§
+	list_add_tail(&t->list, &timers); // å°†tæ·»åŠ åˆ°timersçš„åé¢
 	pthread_mutex_unlock(&lock);
 	return t;
 }
@@ -84,7 +84,7 @@ timer_release(struct timer *t)
 void 
 timer_cancel(struct timer *t)
 {
-	// Ò»µ©Ò»¸ötimer±»È¡Ïû,ÄÇÃ´ÔÚÊ±ÖÓµÎ´ğµÄ¹ı³ÌÖĞ,Õâ¸ötimer½«»á±»É¾³ı
+	// ä¸€æ—¦ä¸€ä¸ªtimerè¢«å–æ¶ˆ,é‚£ä¹ˆåœ¨æ—¶é’Ÿæ»´ç­”çš„è¿‡ç¨‹ä¸­,è¿™ä¸ªtimerå°†ä¼šè¢«åˆ é™¤
 	if (pthread_mutex_lock(&lock) != 0) {
 		perror("Timer cancel lock");
 		return;
@@ -100,7 +100,7 @@ void *
 timers_start()
 {
 	while (1) {
-		if (usleep(1000) != 0) {	// 1s = 1000 000 Î¢Ãë ÕâÀïµÄ»°,1ÃëÖÓµÎ´ğ1000´Î
+		if (usleep(1000) != 0) {	// 1s = 1000 000 å¾®ç§’ è¿™é‡Œçš„è¯,1ç§’é’Ÿæ»´ç­”1000æ¬¡
 			perror("Timer usleep");
 		}
 		tick++;

@@ -3,11 +3,11 @@
 #include <assert.h>
 
 //
-// Õâ¸öÎÄ¼şÖ÷ÒªÓÃÓÚDebug.
+// è¿™ä¸ªæ–‡ä»¶ä¸»è¦ç”¨äºDebug.
 // 
 extern int debug;
 
-// run_cmd ÓÃÓÚÖ´ĞĞÄ³ÌõÃüÁî
+// run_cmd ç”¨äºæ‰§è¡ŒæŸæ¡å‘½ä»¤
 int 
 run_cmd(char *cmd, ...)
 {
@@ -16,7 +16,7 @@ run_cmd(char *cmd, ...)
 	va_start(ap, cmd);
 	vsnprintf(buf, CMDBUFLEN, cmd, ap);
 	va_end(ap);
-	if (debug) { // DEBUGÄ£Ê½ÏÂÊä³öĞÅÏ¢
+	if (debug) { // DEBUGæ¨¡å¼ä¸‹è¾“å‡ºä¿¡æ¯
 		printf("EXEC: %s\n", buf);
 	}
 	return system(buf);
@@ -47,7 +47,7 @@ ip_pton(char *addr)
 		perror("ERR: Parsing inet address failed");
 		exit(1);
 	}
-	/* ĞèÒª×¢ÒâµÄÊÇinet_pton½«×Ö·ûĞÎÊ½µÄipµØÖ·×ª»»ÎªÍøÂç×Ö½ÚĞòĞÎÊ½µÄipµØÖ· */
+	/* éœ€è¦æ³¨æ„çš„æ˜¯inet_ptonå°†å­—ç¬¦å½¢å¼çš„ipåœ°å€è½¬æ¢ä¸ºç½‘ç»œå­—èŠ‚åºå½¢å¼çš„ipåœ°å€ */
 	return dst;
 }
 
@@ -71,20 +71,20 @@ sum_every_16bits(void *addr, int count)
 
 	if (count == 1) {
 		/*
-		ÕâÀïÓĞÒ»¸öÏ¸½ÚĞèÒª×¢ÒâÒ»ÏÂ. unsigned char 8bit
-		answer 16bit			½«answerÇ¿ÖÆ×ª»»Îª8bit,»áÊ¹µÃ×îºóÊ£ÏÂµÄ8bit±»·ÅÈëµ½xÖĞ
+		è¿™é‡Œæœ‰ä¸€ä¸ªç»†èŠ‚éœ€è¦æ³¨æ„ä¸€ä¸‹. unsigned char 8bit
+		answer 16bit			å°†answerå¼ºåˆ¶è½¬æ¢ä¸º8bit,ä¼šä½¿å¾—æœ€åå‰©ä¸‹çš„8bitè¢«æ”¾å…¥åˆ°xä¸­
 		+-----+-----+			+-----+-----+
 		|  8  |  8  |			|xxxxx|     |
 		+-----+-----+			+-----+-----+
 		*/
-		*(unsigned char *)(&answer) = *(unsigned char *)ptr;
+		*(uchar *)(&answer) = *(uchar *)ptr;
 		sum += answer;
 	}
 
 	return sum;
 }
 
-/* checksum ÓÃÓÚ¼ÆËãĞ£ÑéÖµ */
+/* checksum ç”¨äºè®¡ç®—æ ¡éªŒå€¼ */
 uint16_t
 checksum(void *addr, int count, int start_sum)
 {
@@ -104,12 +104,12 @@ tcp_udp_checksum(uint32_t saddr, uint32_t daddr, uint8_t proto,
 	uint32_t sum = 0;
 	struct pseudo_head head;
 	memset(&head, 0, sizeof(struct pseudo_head));
-	/* ĞèÒª±£Ö¤´«ÈëµÄdaddrÒÔ¼°saddrÊÇÍøÂç×Ö½ÚĞò */
+	/* éœ€è¦ä¿è¯ä¼ å…¥çš„daddrä»¥åŠsaddræ˜¯ç½‘ç»œå­—èŠ‚åº */
 	head.daddr = daddr;
 	head.saddr = saddr;
-	/* ¶ÔÓÚTCPÀ´Ëµ,proto = 0x06,¶ø¶ÔÓÚUDPÀ´Ëµproto = 0x17 */
+	/* å¯¹äºTCPæ¥è¯´,proto = 0x06,è€Œå¯¹äºUDPæ¥è¯´proto = 0x17 */
 	head.proto = proto; /* sizeof(proto) == 1,
-						¶ÔÓÚÖ»ÓĞ1¸ö×Ö½ÚµÄÊı¾İ,²»ĞèÒª×ª»»×Ö½ÚĞò */
+						å¯¹äºåªæœ‰1ä¸ªå­—èŠ‚çš„æ•°æ®,ä¸éœ€è¦è½¬æ¢å­—èŠ‚åº */
 	head.len = htons(len);
 	sum = sum_every_16bits(&head, sizeof(struct pseudo_head));
 	return checksum(data, len, sum);

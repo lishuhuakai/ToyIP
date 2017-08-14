@@ -17,30 +17,33 @@ const char *tcp_dbg_states[] = {
 
 
 /**\
- * tcp_init_segment ½«ÍøÂç×Ö½ÚĞòµÄ¸÷ÏîÈ«²¿×ª»¯ÎªÖ÷»ú×Ö½ÚĞò.
+ * tcp_init_segment å°†ç½‘ç»œå­—èŠ‚åºçš„å„é¡¹å…¨éƒ¨è½¬åŒ–ä¸ºä¸»æœºå­—èŠ‚åº.
 \**/
 static void
 tcp_init_segment(struct tcphdr *th, struct iphdr *ih, struct sk_buff *skb) 
 {
-	/* ĞèÒªËµÃ÷Ò»ÏÂµÄÊÇ,ÕâÀï²»ĞèÒª×ª»»ipÍ·²¿µÄ×Ö½ÚĞò,ÒòÎªÖ®Ç°ÒÑ¾­×ª»»¹ıÁË,Ã¿Ò»²ã¹ÜÃ¿Ò»²ã
-	 µÄÊÂÇé,²»ĞèÒªÔ½½ç,ÕâÊÇĞ­ÒéÕ»×î´óµÄÒ»¸öÌØÉ«. */
-	th->sport = ntohs(th->sport);		/* 16Î»Ô´¶Ë¿ÚºÅ   */
-	th->dport = ntohs(th->dport);		/* 16Î»Ä¿µÄ¶Ë¿ÚºÅ */
-	th->seq = ntohl(th->seq);			/* 32Î»ĞòÁĞºÅ		*/
-	th->ack_seq = ntohl(th->ack_seq);	/* 32Î»È·ÈÏĞòÁĞºÅ */
-	th->win = ntohs(th->win);			/* 16Î»´°¿Ú´óĞ¡   */
-	th->csum = ntohs(th->csum);			/* Ğ£ÑéºÍ		    */
-	th->urp = ntohs(th->urp);			/* 16Î»½ô¼±Ö¸Õë   */
+	/* éœ€è¦è¯´æ˜ä¸€ä¸‹çš„æ˜¯,è¿™é‡Œä¸éœ€è¦è½¬æ¢ipå¤´éƒ¨çš„å­—èŠ‚åº,å› ä¸ºä¹‹å‰å·²ç»è½¬æ¢è¿‡äº†,æ¯ä¸€å±‚ç®¡æ¯ä¸€å±‚
+	 çš„äº‹æƒ…,ä¸éœ€è¦è¶Šç•Œ,è¿™æ˜¯åè®®æ ˆæœ€å¤§çš„ä¸€ä¸ªç‰¹è‰². */
+	th->sport = ntohs(th->sport);		/* 16ä½æºç«¯å£å·   */
+	th->dport = ntohs(th->dport);		/* 16ä½ç›®çš„ç«¯å£å· */
+	th->seq = ntohl(th->seq);			/* 32ä½åºåˆ—å·		*/
+	th->ack_seq = ntohl(th->ack_seq);	/* 32ä½ç¡®è®¤åºåˆ—å· */
+	th->win = ntohs(th->win);			/* 16ä½çª—å£å¤§å°   */
+	th->csum = ntohs(th->csum);			/* æ ¡éªŒå’Œ		    */
+	th->urp = ntohs(th->urp);			/* 16ä½ç´§æ€¥æŒ‡é’ˆ   */
 
-	/* skbÖĞÈ«²¿¶¼ÊÇÏîÈ«²¿¶¼ÊÇÖ÷»ú×Ö½ÚĞò */
-	skb->seq = th->seq;					/* ¸ÃÊı¾İ±¨ÆğÊ¼µÄĞòÁĞºÅ */
-	skb->dlen = ip_len(ih) - tcp_hlen(th);	/* Êµ¼ÊÊı¾İµÄ´óĞ¡ */
+	/* skbä¸­å…¨éƒ¨éƒ½æ˜¯é¡¹å…¨éƒ¨éƒ½æ˜¯ä¸»æœºå­—èŠ‚åº */
+	skb->seq = th->seq;					/* è¯¥æ•°æ®æŠ¥èµ·å§‹çš„åºåˆ—å· */
+	skb->dlen = ip_len(ih) - tcp_hlen(th);	/* å®é™…æ•°æ®çš„å¤§å° */
 	skb->len = skb->dlen + th->syn + th->fin; 
-	skb->end_seq = skb->seq + skb->dlen; /* ¸ÃÊı¾İ±¨ÖÕÖ¹µÄĞòÁĞºÅ */
+	skb->end_seq = skb->seq + skb->dlen; /* è¯¥æ•°æ®æŠ¥ç»ˆæ­¢çš„åºåˆ—å· */
 	skb->payload = th->data;
 }
 
 
+/**\
+ * tcp_in å¤„ç†æ¥æ”¶åˆ°çš„tcpæ•°æ®æŠ¥
+\**/
 void
 tcp_in(struct sk_buff *skb)
 {
@@ -53,7 +56,7 @@ tcp_in(struct sk_buff *skb)
 
 	tcp_init_segment(th, iph, skb);
 
-	/* ÕâÀïÑ°ÕÒµÄsk±¾À´¾ÍÊÇÒ»¸ötcp_sock¶ÔÏó */
+	/* è¿™é‡Œå¯»æ‰¾çš„skæœ¬æ¥å°±æ˜¯ä¸€ä¸ªtcp_sockå¯¹è±¡ */
 	sk = tcp_lookup_sock(iph->saddr, th->sport, iph->daddr, th->dport);
 
 	if (sk == NULL) {
@@ -82,12 +85,12 @@ __tcp_set_state(struct sock *sk, uint32_t state)
 }
 
 /**\
- * generate_port Ëæ»ú²úÉú½Ó¿Ú.
+ * generate_port éšæœºäº§ç”Ÿæ¥å£.
 \**/
 uint16_t 
 tcp_generate_port()
 {
-	// todo: ¸üºÃµÄ°ì·¨À´ÉèÖÃport
+	// todo: æ›´å¥½çš„åŠæ³•æ¥è®¾ç½®port
 	static int port = 40000;
 	return ++port + (timer_get_tick() % 10000);
 }
@@ -95,7 +98,7 @@ tcp_generate_port()
 int
 tcp_generate_isn()
 {
-	// todo: ¸üºÃµÄ·½·¨À´²úÉúisn
+	// todo: æ›´å¥½çš„æ–¹æ³•æ¥äº§ç”Ÿisn
 	return (int)time(NULL) *rand();
 }
 
@@ -174,15 +177,15 @@ tcp_linger(uint32_t ts, void *arg)
 {
 	struct sock *sk = (struct sock *)arg;
 	struct tcp_sock *tsk = tcp_sk(sk);
-	timer_release(tsk->linger);		/* ÊÍ·Å¶¨Ê±Æ÷ */
+	timer_release(tsk->linger);		/* é‡Šæ”¾å®šæ—¶å™¨ */
 	tsk->linger = NULL;
-	tcp_done(sk);		/* ³¹µ×½áÊøÕâ¸öÁ¬½Ó */
+	tcp_done(sk);		/* å½»åº•ç»“æŸè¿™ä¸ªè¿æ¥ */
 }
 
 void
 tcp_enter_time_wait(struct sock *sk)
 {
-	/* ½øÈëTIME_WAIT×´Ì¬ */
+	/* è¿›å…¥TIME_WAITçŠ¶æ€ */
 	struct tcp_sock *tsk = tcp_sk(sk);
 	tcp_set_state(sk, TCP_TIME_WAIT);
 	tcp_clear_timers(sk);

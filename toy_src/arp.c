@@ -4,7 +4,7 @@
 #include "arp.h"
 #include "utils.h"
 
-static uint8_t broadcast_hw[] = {	0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static uint8_t broadcast_hw[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff}; /* å¹¿æ’­åœ°å€ */
 
 static LIST_HEAD(arp_cache);
 
@@ -22,7 +22,7 @@ arp_entry_alloc(struct arp_hdr *hdr, struct arp_ipv4 *data)
 {
 	struct arp_cache_entry *entry = malloc(sizeof(struct arp_cache_entry));
 	list_init(&entry->list);
-	entry->state = ARP_RESOLVED;	// arpÓ¦´ğ
+	entry->state = ARP_RESOLVED;	// arpåº”ç­”
 	entry->hwtype = hdr->hwtype;
 	entry->sip = data->sip;
 	memcpy(entry->smac, data->smac, sizeof(entry->smac));
@@ -33,10 +33,13 @@ static int
 insert_arp_translation_table(struct arp_hdr *hdr, struct arp_ipv4 *data)
 {
 	struct arp_cache_entry *entry = arp_entry_alloc(hdr, data);
-	list_add_tail(&entry->list, &arp_cache);
+	list_add_tail(&entry->list, &arp_cache); /* æ·»åŠ åˆ°arp_cacheçš„å°¾éƒ¨ */
 	return 0;
 }
 
+/**\
+ * update_arp_translation_table æ›´æ–°arpè½¬æ¢è¡¨ 
+\**/
 static int
 update_arp_translation_table(struct arp_hdr *hdr, struct arp_ipv4 *data)
 {
@@ -58,35 +61,38 @@ void arp_init()
 
 }
 
+/**\
+ * arp_rcv æ¥æ”¶åˆ°äº†arpæ•°æ®æŠ¥,é©¬ä¸Šè°ƒç”¨è¿™ä¸ªå‡½æ•°æ¥å¤„ç†
+\**/
 void arp_rcv(struct sk_buff *skb)
 {
 	struct arp_hdr *arphdr;
 	struct arp_ipv4 *arpdata;
 	struct netdev *netdev;
 	int merge = 0;
-	arphdr = arp_hdr(skb);						// »ñµÃarpÍ·²¿
-	arphdr->hwtype = ntohs(arphdr->hwtype);		// Ó²¼şÀàĞÍ
-	arphdr->protype = ntohs(arphdr->protype);	// Ğ­ÒéÀàĞÍ
-	arphdr->opcode = ntohs(arphdr->opcode);		// ²Ù×÷ÀàĞÍ
+	arphdr = arp_hdr(skb);						// è·å¾—arpå¤´éƒ¨
+	arphdr->hwtype = ntohs(arphdr->hwtype);		// ç¡¬ä»¶ç±»å‹
+	arphdr->protype = ntohs(arphdr->protype);	// åè®®ç±»å‹
+	arphdr->opcode = ntohs(arphdr->opcode);		// æ“ä½œç±»å‹
 	arp_dbg("in", arphdr);
 
-	if (arphdr->hwtype != ARP_ETHERNET) {		// 1´ú±íÒÔÌ«ÍøµØÖ·
+	if (arphdr->hwtype != ARP_ETHERNET) {		// 1ä»£è¡¨ä»¥å¤ªç½‘åœ°å€
 		printf("ARP: Unsupported HW type\n");
 		goto drop_pkt;
 	}
 
-	if (arphdr->protype != ARP_IPV4) {			// 0x0800 -- 2048±íÊ¾arpĞ­Òé
+	if (arphdr->protype != ARP_IPV4) {			// 0x0800 -- 2048è¡¨ç¤ºarpåè®®
 		printf("ARP: Unsupported protocol\n");
 		goto drop_pkt;
 	}
 
 	arpdata = (struct arp_ipv4 *)arphdr->data;
 
-	arpdata->sip = ntohl(arpdata->sip);		// ·¢ËÍ·½ipµØÖ·
-	arpdata->dip = ntohl(arpdata->dip);		// ½ÓÊÕ·½ipµØÖ·
+	arpdata->sip = ntohl(arpdata->sip);		// å‘é€æ–¹ipåœ°å€
+	arpdata->dip = ntohl(arpdata->dip);		// æ¥æ”¶æ–¹ipåœ°å€
 	arpdata_dbg("receive", arpdata);
 
-	merge = update_arp_translation_table(arphdr, arpdata); // ¸üĞÂarp»º´æ
+	merge = update_arp_translation_table(arphdr, arpdata); // æ›´æ–°arpç¼“å­˜
 
 	if (!(netdev = netdev_get(arpdata->dip))) {
 		printf("ARP was not for us\n");
@@ -99,10 +105,10 @@ void arp_rcv(struct sk_buff *skb)
 	}
 
 	switch (arphdr->opcode) {
-	case ARP_REQUEST:		// 0x0001 -- arpÇëÇó				// mtuÉèÖÃÎª1500×Ö½Ú		// mtuÉèÖÃÎª1500×Ö½Ú		// mtuÉèÖÃÎª1500×Ö½Ú
+	case ARP_REQUEST:		// 0x0001 -- arpè¯·æ±‚
 		arp_reply(skb, netdev);
 		return;
-	case ARP_REPLY:			// 0x0002 -- arp»Ø¸´,ÕâÀïÊµ¼ÊÉÏÔÚÉÏÃæÒÑ¾­´¦ÀíÁË,¸üĞÂÁËarp»º´æ
+	case ARP_REPLY:			// 0x0002 -- arpå›å¤,è¿™é‡Œå®é™…ä¸Šåœ¨ä¸Šé¢å·²ç»å¤„ç†äº†,æ›´æ–°äº†arpç¼“å­˜
 		return;
 	default:
 		printf("ARP: Opcode not supported\n");
@@ -114,7 +120,9 @@ drop_pkt:
 	return;
 }
 
-// arp_rquest ÓÃÓÚ·¢ËÍarpÇëÇó
+/**\
+ * arp_rquest ç”¨äºå‘é€arpè¯·æ±‚
+\**/
 int 
 arp_request(uint32_t sip, uint32_t dip, struct netdev *netdev)
 {
@@ -124,7 +132,7 @@ arp_request(uint32_t sip, uint32_t dip, struct netdev *netdev)
 	int rc = 0;
 	int size = ETH_HDR_LEN + ARP_HDR_LEN + ARP_DATA_LEN;
 
-	skb = arp_alloc_skb(); // ·ÖÅäarp»Ø¸´µÄÊı¾İ
+	skb = arp_alloc_skb(); // åˆ†é…arpå›å¤çš„æ•°æ®
 	
 	if (!skb) return -1;
 
@@ -132,10 +140,12 @@ arp_request(uint32_t sip, uint32_t dip, struct netdev *netdev)
 	skb->dev = netdev;
 	payload = (struct arp_ipv4 *)skb_push(skb, ARP_DATA_LEN);
 	
-	memcpy(payload->smac, netdev->hwaddr, netdev->addr_len); // ¿½±´Ó²¼şµØÖ·
+	/* å‘é€ç«¯å¡«å…¥çš„æ˜¯æœ¬æœºçš„åœ°å€ä¿¡æ¯,ä½†æ˜¯ipæ˜¯ä¸»æœºå­—èŠ‚åº */
+	memcpy(payload->smac, netdev->hwaddr, netdev->addr_len); // æ‹·è´ç¡¬ä»¶åœ°å€
 	payload->sip = sip;
 
-	memcpy(payload->dmac, broadcast_hw, netdev->addr_len);  // ¹ã²¥
+	/* æ¥æ”¶ç«¯å¡«å…¥çš„æ˜¯å¹¿æ’­åœ°å€ä»¥åŠæƒ³è¦æŸ¥è¯¢çš„ipçš„åœ°å€,ä½†æ˜¯ipæ˜¯ä¸»æœºå­—èŠ‚åº */
+	memcpy(payload->dmac, broadcast_hw, netdev->addr_len);  // å¹¿æ’­
 	payload->dip = dip;
 
 	arp = (struct arp_hdr *)skb_push(skb, ARP_HDR_LEN);
@@ -148,6 +158,7 @@ arp_request(uint32_t sip, uint32_t dip, struct netdev *netdev)
 	arp->prosize = 4;
 
 	arpdata_dbg("req", payload);
+	/* ç„¶åè½¬æ¢ä¸ºç½‘ç»œå­—èŠ‚åº */
 	payload->sip = htonl(payload->sip);
 	payload->dip = htonl(payload->dip);
 
@@ -157,22 +168,26 @@ arp_request(uint32_t sip, uint32_t dip, struct netdev *netdev)
 	return rc;
 }
 
-// arp_reply ÓÃÓÚarp»Ø¸´
+/**\
+ * arp_reply ç”¨äºarpå›å¤
+\**/
 void 
 arp_reply(struct sk_buff *skb, struct netdev *netdev)
 {
+	/* netdevä¸­åŒ…å«äº†æœ¬æœºçš„åœ°å€ä¿¡æ¯,åŒ…æ‹¬ipåœ°å€å’Œmacåœ°å€ */
 	struct arp_hdr *arphdr;
 	struct arp_ipv4 *arpdata;
 
 	arphdr = arp_hdr(skb);
 
-	// skb_reserveº¯Êı»á½«skbµÄdataÖ¸ÕëÏòºóÒÆ¶¯ETH_HDR_LEN + ARP_HDR_LEN + ARP_DATA_LEN¸ö×Ö½Ú.
+	// skb_reserveå‡½æ•°ä¼šå°†skbçš„dataæŒ‡é’ˆå‘åç§»åŠ¨ETH_HDR_LEN + ARP_HDR_LEN + ARP_DATA_LENä¸ªå­—èŠ‚.
 	skb_reserve(skb, ETH_HDR_LEN + ARP_HDR_LEN + ARP_DATA_LEN);	
-	// skb_pushº¯Êı½«skbµÄdataÖ¸ÕëÏòÇ°ÒÆ¶¯ARP_HDR_LEN¸ö×Ö½Ú
+	// skb_pushå‡½æ•°å°†skbçš„dataæŒ‡é’ˆå‘å‰ç§»åŠ¨ARP_HDR_LENä¸ªå­—èŠ‚
 	skb_push(skb, ARP_HDR_LEN + ARP_DATA_LEN);
 
 	arpdata = (struct arp_ipv4 *)arphdr->data;
 
+	/* å°†æºåœ°å€å’Œç›®çš„åœ°å€è¿›è¡Œäº¤æ¢,éœ€è¦æ³¨æ„çš„æ˜¯ä¸‹é¢çš„ipåœ°å€éƒ½æ˜¯ä¸»æœºå­—èŠ‚åº */
 	memcpy(arpdata->dmac, arpdata->smac, 6);
 	arpdata->dip = arpdata->sip;
 
@@ -188,17 +203,20 @@ arp_reply(struct sk_buff *skb, struct netdev *netdev)
 	arphdr->protype = htons(arphdr->protype);
 
 	arpdata_dbg("reply", arpdata);
+	/* æœ€ç»ˆè½¬æ¢ä¸ºæœ¬æœºå­—èŠ‚åº */
 	arpdata->sip = htonl(arpdata->sip);
 	arpdata->dip = htonl(arpdata->dip);
 
 	skb->dev = netdev;
-	// arpĞ­ÒéÍê³É×Ô¼ºµÄ²¿·Ö,È»ºó½ÓÏÂÀ´ÈÃÁ´Â·²ãÈ¥²ÙĞÄ
+	// arpåè®®å®Œæˆè‡ªå·±çš„éƒ¨åˆ†,ç„¶åæ¥ä¸‹æ¥è®©é“¾è·¯å±‚å»æ“å¿ƒ
 	netdev_transmit(skb, arpdata->dmac, ETH_P_ARP);
 	free_skb(skb);
 }
 
-// arp_get_hwaddr ¸ù¾İipµÃµ½macµØÖ·,ÕÒ²»µ½Ôò·µ»ØNULL
-unsigned char* 
+/**\
+ * arp_get_hwaddr æ ¹æ®ipå¾—åˆ°macåœ°å€,æ‰¾ä¸åˆ°åˆ™è¿”å›NULL
+\**/
+uchar* 
 arp_get_hwaddr(uint32_t sip)
 {
 	struct list_head *item;

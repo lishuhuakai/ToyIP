@@ -6,7 +6,6 @@
 #include "timer.h"
 #include "tcp.h"
 #include "udp.h"
-#include "TEST.h"
 
 int debug = 1;
 int running = 1;
@@ -78,7 +77,7 @@ run_threads()
 static void 
 init_stack()
 {
-	tun_init();      /* ³õÊ¼»¯ĞéÄâÍø¿¨ */
+	tun_init();      /* åˆå§‹åŒ–è™šæ‹Ÿç½‘å¡ */
 	netdev_init();
 	route_init();
 	tcp_init();

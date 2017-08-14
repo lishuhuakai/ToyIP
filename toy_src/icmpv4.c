@@ -5,13 +5,13 @@
 #include "sock.h"
 #include <sys/time.h>
 //
-// ICMP -- Internet¿ØÖÆ±¨ÎÄÐ­Òé.
+// ICMP -- InternetæŽ§åˆ¶æŠ¥æ–‡åè®®.
 // 
 void
 icmpv4_incoming(struct sk_buff *skb)
 {
-	struct iphdr *iphdr = ip_hdr(skb);					   // »ñµÃipÍ·²¿
-	struct icmp_v4 *icmp = (struct icmp_v4 *)iphdr->data;  // ipÍ·²¿ºó½ô¸úicmp
+	struct iphdr *iphdr = ip_hdr(skb);					   // èŽ·å¾—ipå¤´éƒ¨
+	struct icmp_v4 *icmp = (struct icmp_v4 *)iphdr->data;  // ipå¤´éƒ¨åŽç´§è·Ÿicmp
 
 	// todo: Check csum
 
@@ -35,24 +35,24 @@ drop_pkt:
 void
 icmpv4_reply(struct sk_buff *skb)
 {
-	struct iphdr *iphdr = ip_hdr(skb);		// »ñµÃipÍ·²¿
+	struct iphdr *iphdr = ip_hdr(skb);		// èŽ·å¾—ipå¤´éƒ¨
 	struct icmp_v4 *icmp;
 	// todo
 	struct sock sk;
 	memset(&sk, 0, sizeof(struct sock));
 
-	// iphdr->ihl * 4Ö¸µÄÊÇipÍ·²¿µÄ´óÐ¡
-	uint16_t icmp_len = iphdr->len - (iphdr->ihl * 4);		// ipÊý¾Ý±¨µÄ×Ü³¤¶È¼õÈ¥ipÍ·²¿´óÐ¡,µÃµ½icmpÊý¾Ý±¨µÄ´óÐ¡
+	// iphdr->ihl * 4æŒ‡çš„æ˜¯ipå¤´éƒ¨çš„å¤§å°
+	uint16_t icmp_len = iphdr->len - (iphdr->ihl * 4);		// ipæ•°æ®æŠ¥çš„æ€»é•¿åº¦å‡åŽ»ipå¤´éƒ¨å¤§å°,å¾—åˆ°icmpæ•°æ®æŠ¥çš„å¤§å°
 	skb_reserve(skb, ETH_HDR_LEN + IP_HDR_LEN + icmp_len);
-	skb_push(skb, icmp_len); // icmp»Ø¸´µÄ´óÐ¡
+	skb_push(skb, icmp_len); // icmpå›žå¤çš„å¤§å°
 
 	icmp = (struct icmp_v4 *)skb->data;
-	icmp->type = ICMP_V4_REPLY;				   // ICMP»ØÏÔÓ¦´ð 
+	icmp->type = ICMP_V4_REPLY;				   // ICMPå›žæ˜¾åº”ç­” 
 	icmp->csum = 0;
-	icmp->csum = checksum(icmp, icmp_len, 0);  /* ¼ÆËãÐ£ÑéºÍ */
+	icmp->csum = checksum(icmp, icmp_len, 0);  /* è®¡ç®—æ ¡éªŒå’Œ */
 
 	skb->protocol = ICMPV4;
-	sk.daddr = iphdr->saddr;	// ¶Ô·½·¢¹ýÀ´µÄÔ´ipµØÖ·±ä³ÉÁËÄ¿µÄipµØÖ·
+	sk.daddr = iphdr->saddr;	// å¯¹æ–¹å‘è¿‡æ¥çš„æºipåœ°å€å˜æˆäº†ç›®çš„ipåœ°å€
 
 	ip_output(&sk, skb);
 	free_skb(skb);
@@ -61,7 +61,7 @@ icmpv4_reply(struct sk_buff *skb)
 void
 icmpv4_timestamp(struct sk_buff *skb)
 {
-	struct iphdr *iphdr = ip_hdr(skb);  // »ñµÃipÍ·²¿
+	struct iphdr *iphdr = ip_hdr(skb);  // èŽ·å¾—ipå¤´éƒ¨
 	struct icmp_v4_timestamp *icmp;
 	struct sock sk;
 	struct timeval tv;
@@ -81,7 +81,7 @@ icmpv4_timestamp(struct sk_buff *skb)
 
 	icmp->csum = 0;
 	icmp->csum = checksum(icmp, icmp_len, 0);
-	skb->protocol = ICMPV4;			// Ð­Òé²»ÓÃ¸Ä±ä×Ö½ÚÐò
+	skb->protocol = ICMPV4;			// åè®®ä¸ç”¨æ”¹å˜å­—èŠ‚åº
 	sk.daddr = iphdr->saddr;
 	ip_output(&sk, skb);
 	free_skb(skb);

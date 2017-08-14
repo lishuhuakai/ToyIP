@@ -15,7 +15,7 @@ tcp_synrecv_ack(struct tcp_sock *tsk)
 }
 
 /**\
- * tcp_clean_retransmission_queue¶ÔskµÄÖØ´«¶ÓÁĞ½øĞĞÇåÀí,¼´½«½ÓÊÕµ½ÁËÈ·ÈÏµÄÊı¾İ¶ªÆú. 
+ * tcp_clean_retransmission_queueå¯¹skçš„é‡ä¼ é˜Ÿåˆ—è¿›è¡Œæ¸…ç†,å³å°†æ¥æ”¶åˆ°äº†ç¡®è®¤çš„æ•°æ®ä¸¢å¼ƒ. 
 \**/
 static int
 tcp_clean_retransmission_queue(struct sock *sk, uint32_t una)
@@ -25,10 +25,10 @@ tcp_clean_retransmission_queue(struct sock *sk, uint32_t una)
 	int rc = 0;
 
 	pthread_mutex_lock(&sk->write_queue.lock);
-	/* ĞèÒª×¢ÒâµÄÊÇ,ÔÚwrite_queueÖĞµÄÊı¾İÊÇÑÏ¸ñ°´ÕÕ·¢ËÍË³ĞòÅÅÁĞµÄ. 
-	 ËùÒÔwrite_queueÖĞskbµÄend_seqÉıĞòÅÅÁĞ */
+	/* éœ€è¦æ³¨æ„çš„æ˜¯,åœ¨write_queueä¸­çš„æ•°æ®æ˜¯ä¸¥æ ¼æŒ‰ç…§å‘é€é¡ºåºæ’åˆ—çš„. 
+	 æ‰€ä»¥write_queueä¸­skbçš„end_seqå‡åºæ’åˆ— */
 	while ((skb = skb_peek(&sk->write_queue)) != NULL) {
-		/* ÊÍ·ÅµôÒÑ¾­½ÓÊÕµ½ÁËÈ·ÈÏµÄÊı¾İ */
+		/* é‡Šæ”¾æ‰å·²ç»æ¥æ”¶åˆ°äº†ç¡®è®¤çš„æ•°æ® */
 		if (skb->end_seq <= una) {
 			skb_dequeue(&sk->write_queue);
 			skb->refcnt--;
@@ -39,7 +39,7 @@ tcp_clean_retransmission_queue(struct sock *sk, uint32_t una)
 		}
 	}
 
-	/* skb == NULL±íÊ¾Òª·¢ËÍµÄÊı¾İÈ«²¿·¢ËÍÍê±Ï,²¢ÇÒ¶¼½ÓÊÕµ½ÁËÈ·ÈÏ,Ò²¾ÍÊÇ·¢ËÍ³É¹¦ */
+	/* skb == NULLè¡¨ç¤ºè¦å‘é€çš„æ•°æ®å…¨éƒ¨å‘é€å®Œæ¯•,å¹¶ä¸”éƒ½æ¥æ”¶åˆ°äº†ç¡®è®¤,ä¹Ÿå°±æ˜¯å‘é€æˆåŠŸ */
 	if (skb == NULL) {
 		tcp_stop_retransmission_timer(tsk);
 	}
@@ -50,7 +50,7 @@ tcp_clean_retransmission_queue(struct sock *sk, uint32_t una)
 
 
 /**\
- * tcp_drop ÓÃÓÚ¶ªÆúÊı¾İ±¨. 
+ * tcp_drop ç”¨äºä¸¢å¼ƒæ•°æ®æŠ¥. 
 \**/
 static inline int
 tcp_drop(struct tcp_sock *tsk, struct sk_buff *skb)
@@ -65,9 +65,9 @@ tcp_packet_filter(struct tcp_sock *tsk, struct tcphdr *th, struct sk_buff *skb)
 	struct tcb *tcb = &tsk->tcb;
 
 	if (skb->dlen > 0 && tcb->rcv_wnd == 0) return 0;
-	/* ½ÓÊÕµ½µÄ°üµÄĞòÁĞºÅÈç¹ûĞ¡ÓÚÎÒÃÇÆÚ´ı½ÓÊÕµÄÏÂÒ»¸öÊı¾İ±¨µÄĞòÁĞºÅ(rcv_nxt),ÄÇÃ´ÕâÊÇÒ»¸ö
-	ÖØ´«µÄÊı¾İ°ü,Í¬Ê±,Èç¹ûĞòÁĞºÅ´óÓÚrcv_nxt+rcv_wnd,±íÊ¾¿ÉÄÜÊÇ¶Ô·½´«ËÍÌ«¶à,µ±È»Ò²¿ÉÄÜ
-	ÊÇ±ğµÄÔ­Òò.×ÜÖ®ÕâĞ©¶¼ÊÇÎŞÓÃµÄÊı¾İ±¨. */
+	/* æ¥æ”¶åˆ°çš„åŒ…çš„åºåˆ—å·å¦‚æœå°äºæˆ‘ä»¬æœŸå¾…æ¥æ”¶çš„ä¸‹ä¸€ä¸ªæ•°æ®æŠ¥çš„åºåˆ—å·(rcv_nxt),é‚£ä¹ˆè¿™æ˜¯ä¸€ä¸ª
+	é‡ä¼ çš„æ•°æ®åŒ…,åŒæ—¶,å¦‚æœåºåˆ—å·å¤§äºrcv_nxt+rcv_wnd,è¡¨ç¤ºå¯èƒ½æ˜¯å¯¹æ–¹ä¼ é€å¤ªå¤š,å½“ç„¶ä¹Ÿå¯èƒ½
+	æ˜¯åˆ«çš„åŸå› .æ€»ä¹‹è¿™äº›éƒ½æ˜¯æ— ç”¨çš„æ•°æ®æŠ¥. */
 	if (th->seq < tcb->rcv_nxt ||
 		th->seq > (tcb->rcv_nxt + tcb->rcv_wnd)) {
 		tcp_sock_dbg("Received invalid segment", (&tsk->sk));
@@ -97,46 +97,46 @@ tcp_listen_child_sock(struct tcp_sock *tsk, struct tcphdr *thr, struct iphdr * i
 	newsk->dport = thr->sport;
 
 	newtsk->parent = tsk;
-	list_add(&newtsk->list, &tsk->listen_queue);	/* ½«ĞÂµÄsock¼ÓÈë¼àÌı¶ÓÁĞ */
+	list_add(&newtsk->list, &tsk->listen_queue);	/* å°†æ–°çš„sockåŠ å…¥ç›‘å¬é˜Ÿåˆ— */
 	return newtsk;
 }
 
 /**\
- * tcp_listenÓÃÓÚ¼àÌı. 
+ * tcp_listenç”¨äºç›‘å¬. 
 \**/
 static int 
 tcp_handle_listen(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 {
-	/* tcp¹æ¶¨,syn±¨ÎÄ¶Î²»ÄÜĞ¯´øÊı¾İ,µ«ÊÇÒªÏûºÄµôÒ»¸öĞòºÅ */
+	/* tcpè§„å®š,synæŠ¥æ–‡æ®µä¸èƒ½æºå¸¦æ•°æ®,ä½†æ˜¯è¦æ¶ˆè€—æ‰ä¸€ä¸ªåºå· */
 	struct tcp_sock *newtsk;
 	struct iphdr *iphdr = ip_hdr(skb);
 	
-	/* 1. ¼ì²érst */
+	/* 1. æ£€æŸ¥rst */
 	if (th->rst) goto discard;
 
-	/* 2. ¼ì²éack */
-	if (th->ack) {
+	/* 2. æ£€æŸ¥ack */
+	if (th->ack) { /* ç›‘å¬çŠ¶æ€çš„æ—¶å€™æ”¶åˆ°ack,åªèƒ½ä¸¢å¼ƒæ‰ */
 		tcp_send_reset(tsk);
 		goto discard;
 	}
 
-	/* 3. ¼ì²ésyn */
+	/* 3. æ£€æŸ¥syn */
 	if (!th->syn) goto discard;
 
 	newtsk = tcp_listen_child_sock(tsk, th, iphdr);
-	/* ¹¹½¨ÁËÒ»¸öĞÂµÄsockÖ®ºó,ĞèÒª½«¸Ãsock·ÅÈë¶ÓÁĞÖĞ */
+	/* æ„å»ºäº†ä¸€ä¸ªæ–°çš„sockä¹‹å,éœ€è¦å°†è¯¥sockæ”¾å…¥é˜Ÿåˆ—ä¸­ */
 	if (!newtsk) goto discard;
 	tcp_set_state((&newtsk->sk), TCP_SYN_RECEIVED);
 
 	struct tcb *tc = &newtsk->tcb;
-	/* ×¼±¸Ïò¶Ô·½·¢ËÍackÒÔ¼°syn */
+	/* å‡†å¤‡å‘å¯¹æ–¹å‘é€ackä»¥åŠsyn */
 	tc->irs = th->seq;
 	tc->isn = tcp_generate_isn();
-	tc->snd_nxt = tc->isn;		/* ·¢ËÍ¸ø¶Ô¶ËµÄseqĞòºÅ */
-	tc->rcv_nxt = th->seq + 1;	/* ·¢ËÍ¸ø¶Ô¶ËµÄackĞòºÅ, ¶Ô·½·¢ËÍµÄsynÏûºÄµôÒ»¸öĞòºÅ */
+	tc->snd_nxt = tc->isn;		/* å‘é€ç»™å¯¹ç«¯çš„seqåºå· */
+	tc->rcv_nxt = th->seq + 1;	/* å‘é€ç»™å¯¹ç«¯çš„ackåºå·, å¯¹æ–¹å‘é€çš„synæ¶ˆè€—æ‰ä¸€ä¸ªåºå· */
 	tcp_send_synack(&newtsk->sk);
 	tcp_established_or_syn_recvd_socks_enqueue(&newtsk->sk);
-	tc->snd_nxt = tc->isn + 1;	/* synÏûºÄµôÒ»¸öĞòºÅ */
+	tc->snd_nxt = tc->isn + 1;	/* synæ¶ˆè€—æ‰ä¸€ä¸ªåºå· */
 	tc->snd_una = tc->isn;
 discard:
 	free_skb(skb);
@@ -155,8 +155,8 @@ tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 	tcp_sock_dbg("state is synsent", sk);
 
 	if (th->ack) {
-		/* th->ack_seq < tcb->isn ÒÔ¼° th->ack_seq > tcb->snd_nxt
-		   ¸ù¾İtcpĞ­ÒéÕ»µÄ»°,¶¼ÊÇ²»¿ÉÄÜµÄ. */
+		/* th->ack_seq < tcb->isn ä»¥åŠ th->ack_seq > tcb->snd_nxt
+		   æ ¹æ®tcpåè®®æ ˆçš„è¯,éƒ½æ˜¯ä¸å¯èƒ½çš„. */
 		if (th->ack_seq < tcb->isn || th->ack_seq > tcb->snd_nxt) {
 			tcp_sock_dbg("ACK is unacceptable", sk);
 			if (th->rst) goto discard;
@@ -169,37 +169,37 @@ tcp_synsent(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 		}
 	}
 
-	/* ÎÒÃÇ¸ø¶Ô·½·¢ËÍÁËÒ»¸ösyn,ÊÔÍ¼Á¬½Ó¶Ô·½,È»ºó¶Ô·½·¢¹ıÀ´Ò»¸örst */
+	/* æˆ‘ä»¬ç»™å¯¹æ–¹å‘é€äº†ä¸€ä¸ªsyn,è¯•å›¾è¿æ¥å¯¹æ–¹,ç„¶åå¯¹æ–¹å‘è¿‡æ¥ä¸€ä¸ªrst */
 	if (th->rst) { 
-		// tofix: ½ÓÊÕµ½rst,Ó¦¸Ã¶Ï¿ªÁ¬½Ó
+		// tofix: æ¥æ”¶åˆ°rst,åº”è¯¥æ–­å¼€è¿æ¥
 		goto discard;
 	}
 
 	if (!th->syn) goto discard;
 
-	tcb->rcv_nxt = th->seq + 1;  /* tcb->rcv_nxt±íÊ¾ÆÚ´ı½ÓÊÕµ½µÄĞòºÅ */
-	tcb->irs = th->seq;			 /* tcb->irs±íÊ¾Êı¾İ·¢ËÍµÄ³õÊ¼ĞòÁĞºÅ(initial receive sequence number) */
+	tcb->rcv_nxt = th->seq + 1;  /* tcb->rcv_nxtè¡¨ç¤ºæœŸå¾…æ¥æ”¶åˆ°çš„åºå· */
+	tcb->irs = th->seq;			 /* tcb->irsè¡¨ç¤ºæ•°æ®å‘é€çš„åˆå§‹åºåˆ—å·(initial receive sequence number) */
 
-	if (th->ack) {  /* ¶Ô·½È·ÈÏÁËsyn */
-		tcb->snd_una = th->ack_seq; /* una±íÊ¾ÉĞÎ´È·ÈÏµÄĞòÁĞºÅ */
-		/* ¿ÉÒÔ½«synÊı¾İ±¨´Ówrite queueÖĞÒÆ³ıÁË */
+	if (th->ack) {  /* å¯¹æ–¹ç¡®è®¤äº†syn */
+		tcb->snd_una = th->ack_seq; /* unaè¡¨ç¤ºå°šæœªç¡®è®¤çš„åºåˆ—å· */
+		/* å¯ä»¥å°†synæ•°æ®æŠ¥ä»write queueä¸­ç§»é™¤äº† */
 		tcp_clean_retransmission_queue(sk, tcb->snd_una);
 	}
 
-	/* Ò»°ãÀ´Ëµ,Î´¾­È·ÈÏµÄĞòÁĞºÅ²»»áĞ¡ÓÚisn */
-	if (tcb->snd_una > tcb->isn) { /* ×÷Îª¿Í»§¶Ë,½ÓÊÕµ½ÁË·şÎñ¶Ë·¢ËÍµÄsyn, ack */
-		tcp_set_state(sk, TCP_ESTABLISHED); /* Á¬½Ó½¨Á¢³É¹¦ */
-		tcb->snd_una = tcb->snd_nxt; /* snd_nxt±íÊ¾·¢ËÍÊı¾İÊ±ÏÂÒ»¸öÒª²ÉÓÃµÄĞòÁĞºÅ */
-		tcp_send_ack(&tsk->sk);  /* ·¢ËÍack,µÚ3´ÎÎÕÊÖ */
+	/* ä¸€èˆ¬æ¥è¯´,æœªç»ç¡®è®¤çš„åºåˆ—å·ä¸ä¼šå°äºisn */
+	if (tcb->snd_una > tcb->isn) { /* ä½œä¸ºå®¢æˆ·ç«¯,æ¥æ”¶åˆ°äº†æœåŠ¡ç«¯å‘é€çš„syn, ack */
+		tcp_set_state(sk, TCP_ESTABLISHED); /* è¿æ¥å»ºç«‹æˆåŠŸ */
+		tcb->snd_una = tcb->snd_nxt; /* snd_nxtè¡¨ç¤ºå‘é€æ•°æ®æ—¶ä¸‹ä¸€ä¸ªè¦é‡‡ç”¨çš„åºåˆ—å· */
+		tcp_send_ack(&tsk->sk);  /* å‘é€ack,ç¬¬3æ¬¡æ¡æ‰‹ */
 		wait_wakeup(&tsk->wait);
 	}
 	else {
-		/* ÕâÀï¶ÔÓ¦×ÅÒ»ÖÖ¸ÅÂÊÌØĞ¡µÄÊÂ¼ş,ÄÇ¾ÍÊÇÁ½±ßÍ¬Ê±ÊÔÍ¼Á¬½Ó¶Ô·½,Ò²¾ÍÊÇÍ¬Ê±´ò¿ªµÄÇé¿ö.
-		 ÕâÀïÁ½¶Ë¶¼½øÈësyn_received×´Ì¬,Ò»µ©¶Ô·½½ÓÊÕµ½·¢ËÍµÄsynºÍack,Ö±½Ó½øÈëestablished
-		 ×´Ì¬.*/
+		/* è¿™é‡Œå¯¹åº”ç€ä¸€ç§æ¦‚ç‡ç‰¹å°çš„äº‹ä»¶,é‚£å°±æ˜¯ä¸¤è¾¹åŒæ—¶è¯•å›¾è¿æ¥å¯¹æ–¹,ä¹Ÿå°±æ˜¯åŒæ—¶æ‰“å¼€çš„æƒ…å†µ.
+		 è¿™é‡Œä¸¤ç«¯éƒ½è¿›å…¥syn_receivedçŠ¶æ€,ä¸€æ—¦å¯¹æ–¹æ¥æ”¶åˆ°å‘é€çš„synå’Œack,ç›´æ¥è¿›å…¥established
+		 çŠ¶æ€.*/
 		tcp_set_state(sk, TCP_SYN_RECEIVED);
 		tcb->snd_una = tcb->isn;
-		tcp_send_synack(&tsk->sk); /* µÚ2´ÎÎÕÊÖ */
+		tcp_send_synack(&tsk->sk); /* ç¬¬2æ¬¡æ¡æ‰‹ */
 	}
 
 discard:
@@ -214,8 +214,8 @@ reset_and_discard:
 static int 
 tcp_closed(struct tcp_sock *tsk, struct sk_buff *skb, struct tcphdr *th)
 {
-	/* ËùÓĞincoming segment(´«ËÍ¹ıÀ´µÄÊı¾İ±¨)ÖĞµÄÊı¾İ¶¼»á±»¶ªÆúµô.Èç¹ûÊı¾İ±¨°üº¬
-	   rst, Ö±½Ó¶ªÆú,Èç¹û²»°üº¬,ÎÒÃÇÒª·¢ËÍÒ»¸ö´ørstµÄÊı¾İ±¨×÷Îª»ØÓ¦. */
+	/* æ‰€æœ‰incoming segment(ä¼ é€è¿‡æ¥çš„æ•°æ®æŠ¥)ä¸­çš„æ•°æ®éƒ½ä¼šè¢«ä¸¢å¼ƒæ‰.å¦‚æœæ•°æ®æŠ¥åŒ…å«
+	   rst, ç›´æ¥ä¸¢å¼ƒ,å¦‚æœä¸åŒ…å«,æˆ‘ä»¬è¦å‘é€ä¸€ä¸ªå¸¦rstçš„æ•°æ®æŠ¥ä½œä¸ºå›åº”. */
 	int rc = -1;
 	
 	tcp_sock_dbg("state is closed", (&tsk->sk));
@@ -243,57 +243,57 @@ out:
 int
 tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 {
-	struct tcp_sock *tsk = tcp_sk(sk); 
-	struct tcb *tcb = &tsk->tcb; /* transmission control block ´«Êä¿ØÖÆ¿é */
+	struct tcp_sock *tsk = tcp_sk(sk);
+	struct tcb *tcb = &tsk->tcb; /* transmission control block ä¼ è¾“æ§åˆ¶å— */
 
 	tcp_sock_dbg("input state", sk);
 
 	switch (sk->state) {
-	case TCP_CLOSE:   /* ´¦ÓÚclose×´Ì¬,½ÓÊÕµ½ÁËtcpÊı¾İ±¨ */
+	case TCP_CLOSE:   /* å¤„äºcloseçŠ¶æ€,æ¥æ”¶åˆ°äº†tcpæ•°æ®æŠ¥ */
 		return tcp_closed(tsk, skb, th);
-	case TCP_LISTEN:  /* ´¦ÓÚlisten×´Ì¬ */
+	case TCP_LISTEN:  /* å¤„äºlistençŠ¶æ€ */
 		return tcp_handle_listen(tsk, skb, th);
-	case TCP_SYN_SENT: /* ÒÑ¾­Ö÷¶¯·¢ËÍÁËÒ»¸ösyn */
+	case TCP_SYN_SENT: /* å·²ç»ä¸»åŠ¨å‘é€äº†ä¸€ä¸ªsyn */
 		return tcp_synsent(tsk, skb, th);
 	}
 
-	/* 1.¼ì²ésequence number, tcp_packet_filterÊÇµÚÒ»²ã¹ıÂËÆ÷,Ğ¯´øÁËtcpÊı¾İµÄ°ü
-	 ÄÜ¹»Í¨¹ı,ÆäÓàµÄ±ÈÈçsyn,finµÈ²»Ğ¯´øÊı¾İµÄ°ü,Ê×ÏÈ,Òª¹ıÂËµôÖØ´«µÄ²¿·Ö.
+	/* 1.æ£€æŸ¥sequence number, tcp_packet_filteræ˜¯ç¬¬ä¸€å±‚è¿‡æ»¤å™¨,æºå¸¦äº†tcpæ•°æ®çš„åŒ…
+	 èƒ½å¤Ÿé€šè¿‡,å…¶ä½™çš„æ¯”å¦‚syn,finç­‰ä¸æºå¸¦æ•°æ®çš„åŒ…,é¦–å…ˆ,è¦è¿‡æ»¤æ‰é‡ä¼ çš„éƒ¨åˆ†.
 	 */
 	if (!tcp_packet_filter(tsk, th, skb)) {
 		if (!th->rst) {
-			tcp_send_ack(sk);	/* ¸æËß¶Ô·½,ÎÒ½ÓÊÕµ½ÁËÕâ¸öÊı¾İ°ü */
+			tcp_send_ack(sk);	/* å‘Šè¯‰å¯¹æ–¹,æˆ‘æ¥æ”¶åˆ°äº†è¿™ä¸ªæ•°æ®åŒ… */
 		}
 		return tcp_drop(tsk, skb);
 	}
 
-	/* 2.¼ì²érst bit */
+	/* 2.æ£€æŸ¥rst bit */
 	
 
-	/* 3.¼ì²é°²È«ĞÔºÍÓÅÏÈ¼¶ */
+	/* 3.æ£€æŸ¥å®‰å…¨æ€§å’Œä¼˜å…ˆçº§ */
 	
-	/* 4.¼ì²ésyn */
+	/* 4.æ£€æŸ¥syn */
 	if (th->syn) {
-		/* ½ölistenºÍsyn_sentÁ½¸ö×´Ì¬¿ÉÒÔ½ÓÊÕsyn,¶øÊÂÊµÉÏ,ÕâÁ½¸ö×´Ì¬ÔÚÉÏÃæÒÑ¾­´¦Àí¹ıÁË,
-		 ËùÒÔÔËĞĞµ½ÕâÀï,±íÊ¾skÒ»¶¨²»´¦ÓÚÕâÁ½¸ö×´Ì¬,´ËÍâ,»¹ĞèÒª×¢ÒâÒ»µã:
-		 ÖØ´«µÄsynÊı¾İ°üÔÚÇ°ÃæÒÑ¾­±»¶ªÆúÁË.ËùÒÔÔÚÕâÀï,Õâ¸öÊı¾İ°üÊÇ´íÎóµÄ. */
+		/* ä»…listenå’Œsyn_sentä¸¤ä¸ªçŠ¶æ€å¯ä»¥æ¥æ”¶syn,è€Œäº‹å®ä¸Š,è¿™ä¸¤ä¸ªçŠ¶æ€åœ¨ä¸Šé¢å·²ç»å¤„ç†è¿‡äº†,
+		 æ‰€ä»¥è¿è¡Œåˆ°è¿™é‡Œ,è¡¨ç¤ºskä¸€å®šä¸å¤„äºè¿™ä¸¤ä¸ªçŠ¶æ€,æ­¤å¤–,è¿˜éœ€è¦æ³¨æ„ä¸€ç‚¹:
+		 é‡ä¼ çš„synæ•°æ®åŒ…åœ¨å‰é¢å·²ç»è¢«ä¸¢å¼ƒäº†.æ‰€ä»¥åœ¨è¿™é‡Œ,è¿™ä¸ªæ•°æ®åŒ…æ˜¯é”™è¯¯çš„. */
 		tcp_send_reset(tsk);
 		if (sk->state == TCP_SYN_RECEIVED && tsk->parent) {
-			/*´ËÊ±tskÒ»¶¨±»¹ÒÔÚtcp_established_or_syn_recvd_socksÁ´±íÉÏ,ËùÒÔÒª´Ó
-			 Á´±íÖĞÉ¾³ı¸Ãsock */
+			/*æ­¤æ—¶tskä¸€å®šè¢«æŒ‚åœ¨tcp_established_or_syn_recvd_socksé“¾è¡¨ä¸Š,æ‰€ä»¥è¦ä»
+			 é“¾è¡¨ä¸­åˆ é™¤è¯¥sock */
 			tcp_established_or_syn_recvd_socks_remove(sk);
 			tcp_free_sock(sk);
 		}
 	}
 
-	/* 5.¼ì²éack */
+	/* 5.æ£€æŸ¥ack */
 	if (!th->ack) return tcp_drop(tsk, skb);
 
-	/* ÔËĞĞµ½ÁËÕâÀï,½ÓÊÕµÄÊı¾İÎŞsyn,ÓĞack
-	   ÕâÊÇÊ²Ã´Çé¿öÄØ? ÕâÊÇÕı³£µÄÇé¿ö,±íÃ÷Á¬½ÓµÄÁ½·½ÔÚÕı³£µØ½»»»Êı¾İ. */
+	/* è¿è¡Œåˆ°äº†è¿™é‡Œ,æ¥æ”¶çš„æ•°æ®æ— syn,æœ‰ack
+	   è¿™æ˜¯ä»€ä¹ˆæƒ…å†µå‘¢? è¿™æ˜¯æ­£å¸¸çš„æƒ…å†µ,è¡¨æ˜è¿æ¥çš„ä¸¤æ–¹åœ¨æ­£å¸¸åœ°äº¤æ¢æ•°æ®. */
 	switch (sk->state) {
 	case TCP_SYN_RECEIVED:
-		/* ×÷Îª·şÎñ¶Ë,½ÓÊÕµ½ÁË¶Ô·½·¢ËÍµÄack,Á¬½Ó³É¹¦½¨Á¢ */
+		/* ä½œä¸ºæœåŠ¡ç«¯,æ¥æ”¶åˆ°äº†å¯¹æ–¹å‘é€çš„ack,è¿æ¥æˆåŠŸå»ºç«‹ */
 		if (tcb->snd_una <= th->ack_seq && th->ack_seq <= tcb->snd_nxt) {
 			if (tcp_synrecv_ack(tsk) < 0) {
 				return tcp_drop(tsk, skb);
@@ -307,30 +307,30 @@ tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 		}
 		break;
 	case TCP_ESTABLISHED:
-	case TCP_FIN_WAIT_1:	/* Ö÷¶¯¹Ø±Õ */
-	case TCP_FIN_WAIT_2:	/* fin_wait_2×´Ì¬ÒÀ¾É¿ÉÒÔ½ÓÊÕ¶Ô·½·¢ËÍµÄÊı¾İ,Ö±µ½¶Ô·½·¢ËÍÁËfin,È»ºó½øÈëtime_wait×´Ì¬ */
-	case TCP_CLOSE_WAIT:	/* ½ÓÊÕµ½ÁËFIN,Ö´ĞĞ±»¶¯¹Ø±Õ */
-	case TCP_CLOSING:		/* Á½¶ËÍ¬Ê±¹Ø±Õ,»á½øÈëclosing×´Ì¬ */
+	case TCP_FIN_WAIT_1:	/* ä¸»åŠ¨å…³é—­ */
+	case TCP_FIN_WAIT_2:	/* fin_wait_2çŠ¶æ€ä¾æ—§å¯ä»¥æ¥æ”¶å¯¹æ–¹å‘é€çš„æ•°æ®,ç›´åˆ°å¯¹æ–¹å‘é€äº†fin,ç„¶åè¿›å…¥time_waitçŠ¶æ€ */
+	case TCP_CLOSE_WAIT:	/* æ¥æ”¶åˆ°äº†FIN,æ‰§è¡Œè¢«åŠ¨å…³é—­ */
+	case TCP_CLOSING:		/* ä¸¤ç«¯åŒæ—¶å…³é—­,ä¼šè¿›å…¥closingçŠ¶æ€ */
 	case TCP_LAST_ACK:
-		/* ÏÂÃæµÄÌõ¼şÅĞ¶ÏÊÇÎÒÃÇ¶ÔtcpÊı¾İ°üµÄµÚ¶ş´Î¹ıÂË,ÕâÀïÖ÷ÒªÊÇ¹ıÂËµôĞ¯´øtcpÊı¾İµÄÖØ´«
-		 Êı¾İ,¹ıÂËµôĞòÁĞºÅ²»Õı³£µÄtcpÊı¾İ°ü */
+		/* ä¸‹é¢çš„æ¡ä»¶åˆ¤æ–­æ˜¯æˆ‘ä»¬å¯¹tcpæ•°æ®åŒ…çš„ç¬¬äºŒæ¬¡è¿‡æ»¤,è¿™é‡Œä¸»è¦æ˜¯è¿‡æ»¤æ‰æºå¸¦tcpæ•°æ®çš„é‡ä¼ 
+		 æ•°æ®,è¿‡æ»¤æ‰åºåˆ—å·ä¸æ­£å¸¸çš„tcpæ•°æ®åŒ… */
 
-		/* ÏÂÃæÊÇÈ·±£¶Ô·½·¢¹ıÀ´µÄack_seqÊÇ¶ÔÎÒÃÇ·¢¸ø¶Ô·½µÄ²¢ÇÒ»¹Ã»ÓĞ½ÓÊÕµ½È·ÈÏµÄÊı¾İµÄÈ·ÈÏ */
+		/* ä¸‹é¢æ˜¯ç¡®ä¿å¯¹æ–¹å‘è¿‡æ¥çš„ack_seqæ˜¯å¯¹æˆ‘ä»¬å‘ç»™å¯¹æ–¹çš„å¹¶ä¸”è¿˜æ²¡æœ‰æ¥æ”¶åˆ°ç¡®è®¤çš„æ•°æ®çš„ç¡®è®¤ */
 		if (tcb->snd_una < th->ack_seq && th->ack_seq <= tcb->snd_nxt) {
-			/* ÕâÀï±íÊ¾¶Ô·½ÒÑ¾­ÊÕµ½ÁËÎÒÃÇµÄÊı¾İ°ü,ack_seqÊÇÏÂ´ÎÆÚÍûµÄË³ĞòºÅ,Ò»µ©½ÓÊÕµ½ack
-			 ±íÊ¾ack_seqĞòºÅÖ®Ç°µÄÊı¾İ¶¼ÒÑ¾­ÊÕµ½ÁË. */
+			/* è¿™é‡Œè¡¨ç¤ºå¯¹æ–¹å·²ç»æ”¶åˆ°äº†æˆ‘ä»¬çš„æ•°æ®åŒ…,ack_seqæ˜¯ä¸‹æ¬¡æœŸæœ›çš„é¡ºåºå·,ä¸€æ—¦æ¥æ”¶åˆ°ack
+			 è¡¨ç¤ºack_seqåºå·ä¹‹å‰çš„æ•°æ®éƒ½å·²ç»æ”¶åˆ°äº†. */
             tcb->snd_una = th->ack_seq;
 			tcp_clean_retransmission_queue(sk, tcb->snd_una); 
 		}
 		
 		if (th->ack_seq > tcb->snd_nxt) return tcp_drop(tsk, skb);
 		if (th->ack_seq < tcb->snd_una) return tcp_drop(tsk, skb);
-		/* ack_seq < snd_una ¶à°ëÊÇ³öÏÖÁË¶ÔÒÑ¾­·¢ËÍÊı¾İµÄ¶ş´ÎÈ·ÈÏ,Ö±½Ó¶ªÆú¼´¿É,
-		   ack_seq > snd_nxt Õâ»ù±¾ÉÏ²»¿ÉÄÜ */
+		/* ack_seq < snd_una å¤šåŠæ˜¯å‡ºç°äº†å¯¹å·²ç»å‘é€æ•°æ®çš„äºŒæ¬¡ç¡®è®¤,ç›´æ¥ä¸¢å¼ƒå³å¯,
+		   ack_seq > snd_nxt è¿™åŸºæœ¬ä¸Šä¸å¯èƒ½ */
 		break;
 	}
     
-    /* 6.¼ì²éURG bit */
+    /* 6.æ£€æŸ¥URG bit */
 	
 
 
@@ -340,23 +340,23 @@ tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
 	case TCP_ESTABLISHED:
 	case TCP_FIN_WAIT_1:
 	case TCP_FIN_WAIT_2:
-		if (skb->dlen > 0) {	/* ÓĞÊı¾İ´«µİ¹ıÀ´ */
+		if (skb->dlen > 0) {	/* æœ‰æ•°æ®ä¼ é€’è¿‡æ¥ */
 			tcp_data_queue(tsk, th, skb);
-			tsk->sk.ops->recv_notify(&tsk->sk);	/* »½ĞÑÉÏ²ãÕıÔÚµÈ´ıÊı¾İµÄ½ø³Ì */
+			tsk->sk.ops->recv_notify(&tsk->sk);	/* å”¤é†’ä¸Šå±‚æ­£åœ¨ç­‰å¾…æ•°æ®çš„è¿›ç¨‹ */
 		}
 		break;
 	case TCP_CLOSE_WAIT:
 	case TCP_CLOSING:
 	case TCP_LAST_ACK:
 	case TCP_TIME_WAIT:
-		/* close_wait, closing, last_ack, time_waitÕâ¼¸¸ö×´Ì¬¶¼ÓĞÒ»¸ö¹²Í¬µã,ÄÇ¾ÍÊÇ
-		 ÎÒÃÇÒÑ¾­½ÓÊÕµ½ÁË¶Ô·½·¢ËÍµÄfin,ÕâÒâÎ¶×Å¶Ô·½ÉùÃ÷²»»áÔÙ·¢ËÍÊı¾İ(tcpÊı¾İ)¹ıÀ´,Èç¹û·¢ËÍ
-		 ÁË,ÎÒÃÇÍêÈ«ºöÂÔ¼´¿É.*/
+		/* close_wait, closing, last_ack, time_waitè¿™å‡ ä¸ªçŠ¶æ€éƒ½æœ‰ä¸€ä¸ªå…±åŒç‚¹,é‚£å°±æ˜¯
+		 æˆ‘ä»¬å·²ç»æ¥æ”¶åˆ°äº†å¯¹æ–¹å‘é€çš„fin,è¿™æ„å‘³ç€å¯¹æ–¹å£°æ˜ä¸ä¼šå†å‘é€æ•°æ®(tcpæ•°æ®)è¿‡æ¥,å¦‚æœå‘é€
+		 äº†,æˆ‘ä»¬å®Œå…¨å¿½ç•¥å³å¯.*/
 		break;
 	}
 
-	/* 8, ¼ì²éfin */
-	 /* µÚ2¸öÌõ¼şÊÇ±£Ö¤,ÔÚfinÖ®Ç°µÄÊı¾İÈ«²¿½ÓÊÕ³É¹¦ÁË. */
+	/* 8, æ£€æŸ¥fin */
+	 /* ç¬¬2ä¸ªæ¡ä»¶æ˜¯ä¿è¯,åœ¨finä¹‹å‰çš„æ•°æ®å…¨éƒ¨æ¥æ”¶æˆåŠŸäº†. */
 	if (th->fin && (tcb->rcv_nxt - skb->dlen) == skb->seq) {
 		tcp_sock_dbg("Received in-sequence FIN", sk);
         switch (sk->state) {
@@ -366,23 +366,23 @@ tcp_process(struct sock *sk, struct tcphdr *th, struct sk_buff *skb)
             goto drop_and_unlock;
         }
 
-		tcb->rcv_nxt += 1;	/* finĞèÒªÏûºÄµôÒ»¸öĞòºÅ */
+		tcb->rcv_nxt += 1;	/* finéœ€è¦æ¶ˆè€—æ‰ä¸€ä¸ªåºå· */
 		tsk->flags |= TCP_FIN;
 		tcp_send_ack(sk);
 		tsk->sk.ops->recv_notify(&tsk->sk);
 
 		switch (sk->state) {
 		case TCP_SYN_RECEIVED:
-		case TCP_ESTABLISHED:  /* close_wait ±»¶¯¹Ø±Õ */
+		case TCP_ESTABLISHED:  /* close_wait è¢«åŠ¨å…³é—­ */
 			tcp_set_state(sk, TCP_CLOSE_WAIT);
 			tsk->sk.ops->recv_notify(&tsk->sk);
 			break;
 		case TCP_FIN_WAIT_1:
-			/* Á½¶ËÍ¬Ê±·¢ËÍfin,½øÈëclosing×´Ì¬ */
+			/* ä¸¤ç«¯åŒæ—¶å‘é€fin,è¿›å…¥closingçŠ¶æ€ */
 			tcp_set_state(sk, TCP_CLOSING);
 			break;
-		case TCP_FIN_WAIT_2: /* fin_wait_2½ÓÊÕµ½finÖ®ºó,½øÈëtime_wait×´Ì¬,
-							 »ù±¾ÉÏÒ»¸ötcpÁ¬½Ó¾ÍÍê³ÉÁË. */
+		case TCP_FIN_WAIT_2: /* fin_wait_2æ¥æ”¶åˆ°finä¹‹å,è¿›å…¥time_waitçŠ¶æ€,
+							 åŸºæœ¬ä¸Šä¸€ä¸ªtcpè¿æ¥å°±å®Œæˆäº†. */
 			tcp_enter_time_wait(sk);
 			break;
 		case TCP_CLOSE_WAIT:
@@ -405,13 +405,13 @@ drop_and_unlock:
 int
 tcp_receive(struct tcp_sock *tsk, void *buf, int len)
 {
-	int rlen = 0;		/* rlen±íÊ¾ÒÑ¾­¶Á¹ıµÄÊı¾İ */
+	int rlen = 0;		/* rlenè¡¨ç¤ºå·²ç»è¯»è¿‡çš„æ•°æ® */
 	int curlen = 0;
 	struct sock *sk = &tsk->sk;
 	struct socket *sock = sk->sock;
 	memset(buf, 0, len);
 	
-	/* ½ÓÊÕtcpÊı¾İ±¨µÄÔ­ÔòÔÚÓÚ,¾¡Á¿½«bufÌîÂú,³ı·ÇÒÑ¾­¶Áµ½ÁËFIN */
+	/* æ¥æ”¶tcpæ•°æ®æŠ¥çš„åŸåˆ™åœ¨äº,å°½é‡å°†bufå¡«æ»¡,é™¤éå·²ç»è¯»åˆ°äº†FIN */
 	while (rlen < len) {
 		curlen = tcp_data_dequeue(tsk, buf + rlen, len - rlen);
 		rlen += curlen;
@@ -421,7 +421,7 @@ tcp_receive(struct tcp_sock *tsk, void *buf, int len)
 			break;
 		}
 
-		/* ¶ÁÈ¡µ½ÁË½áÎ² */
+		/* è¯»å–åˆ°äº†ç»“å°¾ */
 		if (tsk->flags & TCP_FIN || rlen == len) break;
 
 		wait_sleep(&sk->recv_wait);

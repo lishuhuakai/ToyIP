@@ -4,8 +4,8 @@
 #include "syshead.h"
 
 struct wait_lock {
-	pthread_cond_t ready;	/* Ìõ¼þ±äÁ¿ÓÃÓÚµÈ´ý */
-	pthread_mutex_t lock;	/* »¥³âËøÓÃÓÚÉÏËø */
+	pthread_cond_t ready;	/* æ¡ä»¶å˜é‡ç”¨äºŽç­‰å¾… */
+	pthread_mutex_t lock;	/* äº’æ–¥é”ç”¨äºŽä¸Šé” */
 	uint8_t sleeping;
 };
 
@@ -21,7 +21,7 @@ static inline int
 wait_wakeup(struct wait_lock *w) {
 	pthread_mutex_lock(&w->lock);
 	w->sleeping = 0;
-	pthread_cond_signal(&w->ready);		/* »½ÐÑµÈ´ýÔÚÌõ¼þ±äÁ¿readyÉÏµÄÏß³Ì */
+	pthread_cond_signal(&w->ready);		/* å”¤é†’ç­‰å¾…åœ¨æ¡ä»¶å˜é‡readyä¸Šçš„çº¿ç¨‹ */
 	pthread_mutex_unlock(&w->lock);
 	return 0;
 }
@@ -30,7 +30,7 @@ static inline int
 wait_sleep(struct wait_lock *w) {
 	pthread_mutex_lock(&w->lock);
 	w->sleeping = 1;
-	while (w->sleeping == 1) { /* ·ÀÖ¹spurious wakeup */
+	while (w->sleeping == 1) { /* é˜²æ­¢spurious wakeup */
 		pthread_cond_wait(&w->ready, &w->lock);
 	}
 	pthread_mutex_unlock(&w->lock);

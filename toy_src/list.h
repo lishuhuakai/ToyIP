@@ -7,7 +7,7 @@ struct list_head {
     struct list_head *prev;
 };
 
-/* ĞÂ½¨Ò»¸ölistÍ·²¿ */
+/* æ–°å»ºä¸€ä¸ªlistå¤´éƒ¨ */
 #define LIST_HEAD(name)		\
     struct list_head name = { &(name), &(name) }
 
@@ -18,7 +18,7 @@ list_init(struct list_head *head)
 }
 
 /**\
- * list_add ½«new_nodeÌí¼Óµ½headÖ®ºó.
+ * list_add å°†new_nodeæ·»åŠ åˆ°headä¹‹å.
 \**/
 static inline void 
 list_add(struct list_head *new_node, struct list_head *head)
@@ -30,7 +30,7 @@ list_add(struct list_head *new_node, struct list_head *head)
 }
 
 /**\
- * list_add_tail ½«new_nodeÌí¼Óµ½listµÄÎ²²¿.
+ * list_add_tail å°†new_nodeæ·»åŠ åˆ°listçš„å°¾éƒ¨.
 \**/
 static inline void 
 list_add_tail(struct list_head *new_node, struct list_head *head)
@@ -42,7 +42,7 @@ list_add_tail(struct list_head *new_node, struct list_head *head)
 }
 
 /**\
- * list_del_init ½«elem´ÓÁ´±íÖĞÉ¾³ı,²¢ÇÒ³õÊ¼»¯.
+ * list_del_init å°†elemä»é“¾è¡¨ä¸­åˆ é™¤,å¹¶ä¸”åˆå§‹åŒ–.
 \**/
 static inline void
 list_del_init(struct list_head *elem)
@@ -56,7 +56,7 @@ list_del_init(struct list_head *elem)
 }
 
 /**\
- * ´ÓlistÖĞÉ¾³ıÔªËØelem.
+ * ä»listä¸­åˆ é™¤å…ƒç´ elem.
 \**/
 static inline void 
 list_del(struct list_head *elem)
@@ -83,7 +83,7 @@ list_del(struct list_head *elem)
          pos = p, p = pos->next)
 
 /**\
- * list_empty ÅĞ¶ÏlistÊÇ·ñÎª¿Õ.
+ * list_empty åˆ¤æ–­listæ˜¯å¦ä¸ºç©º.
 \**/
 static inline int 
 list_empty(struct list_head *head)
