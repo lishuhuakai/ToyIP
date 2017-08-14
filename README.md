@@ -14,10 +14,6 @@
 
 
 
-写这个玩意进度不可能太快,慢慢熬吧.希望在5月底能够弄出一个初版,初版写完之后,我就着手写如何调试,配置以及各个协议的原理了,然后贴成博客.
-
-
-
 
 最好的关于协议栈介绍的书籍还是网络之神的那几本大头书,`tcpip`卷详解`1`,卷二的话,可以读一下,然后是`unp`.边写协议栈边读这几本书,收获自然是最大的.
 
@@ -26,7 +22,11 @@
 1. [http://blog.csdn.net/lishuhuakai/article/details/70305543](http://blog.csdn.net/lishuhuakai/article/details/70305543)
 2. [http://blog.csdn.net/lishuhuakai/article/details/70498149](http://blog.csdn.net/lishuhuakai/article/details/70498149)
 
-已经完工的协议有**arp**,**icmp**, **tcp**, **udp**.基本上我想做的一些事情都已经做完了,当然,程序中还存在一些内存问题,一些逻辑问题,这些小bug需要一步一步来修整.
+其余的东西,我已经贴在 `toy_doc` 这个文件夹之内了, 感兴趣的同学可以去看一下.
+
+
+
+已经完工的协议有**arp**,**icmp**, **tcp**, **udp**.基本上我想做的一些事情都已经做完了,当然,程序中还存在一些内存问题,一些逻辑问题,这些小 **bug** 需要一步一步来修整.
 
 
 
