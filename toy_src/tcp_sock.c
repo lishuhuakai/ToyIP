@@ -352,7 +352,7 @@ tcp_lookup_establised_or_syn_recvd_sock(uint32_t src, uint16_t sport, uint32_t d
 		sk = list_entry(item, struct sock, link);
 		if ((sk->saddr == src) && (sk->sport == sport) &&
 			(sk->daddr == dst) && (sk->dport == dport)) {
-			pthread_rwlock_unlock(&cl_lock);
+			pthread_rwlock_unlock(&es_lock);
 			return sk;
 		}
 	}

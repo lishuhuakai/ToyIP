@@ -52,7 +52,8 @@ ipc_free_thread(int sock)
 		th = list_entry(item, struct ipc_thread, list);
 
 		if (th->sock == sock) {		/* sock类似于文件描述符 */
-			ipc_connections_remove(th);
+			list_del_init(&th->list);
+			conn_count--;
 			ipc_dbg("IPC socket deleted", th);
 			close(th->sock);
 			free(th);
