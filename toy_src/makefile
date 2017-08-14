@@ -15,5 +15,5 @@ $(BIN):$(OBJS)
 
 
 clean:
-	rm -f *.o *.d
+	rm -f *.o
 	rm -f $(BIN)
