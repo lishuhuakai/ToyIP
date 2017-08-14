@@ -7,7 +7,7 @@
 #define RCBUF_LEN 512
 
 static LIST_HEAD(lvlip_socks);
-static int socks_count = 0;
+//static int socks_count = 0;
 //static pthread_rwlock_t lvlip_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 static inline void
@@ -57,7 +57,6 @@ static int
 init_socket(char *sockname)
 {
     struct sockaddr_un addr;
-    int i;
     int ret;
     int data_socket;
 

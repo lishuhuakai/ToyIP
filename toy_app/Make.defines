@@ -1,0 +1,5 @@
+# 使用gcc编译器
+CC	:= gcc
+# -I 选项告诉编译器查找文件中所需要的.h文件请到../include目录下面去找
+CFLAGS	:= -g -std=gnu99 -Wall -I../include
+LIBS	:= ../lib.a

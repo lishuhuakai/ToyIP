@@ -9,7 +9,7 @@
 int
 main(int argc, char *argv[])
 {
-	/* °ó¶¨µ½Ò»¸öµØÖ·ÉÏ,È»ºó¼àÌı */
+	/* ç»‘å®šåˆ°ä¸€ä¸ªåœ°å€ä¸Š,ç„¶åç›‘å¬ */
 	struct sockaddr_in addr;
 	int listenfd, connfd;
 	char buff[1024];

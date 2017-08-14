@@ -59,7 +59,7 @@ main(int argc, char **argv)
     printf("I try to invoke lvl_socket\n");
     sock = lvl_socket(AF_INET, SOCK_STREAM, 0);
 
-    if (lvl_connect(sock, &addr) == -1) {
+    if (lvl_connect(sock, (struct sockaddr_in*)&addr) == -1) {
         perror("Curl could not establish connection");
         return 1;
     }

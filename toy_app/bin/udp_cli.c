@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -15,7 +16,6 @@ dg_cli(FILE *fp, int sockfd, const struct sockaddr_in *pservaddr, socklen_t serv
 {
 	int n;
 	char sendline[MAXLINE], recvline[MAXLINE + 1];
-	int len = strlen(recvline);
 	while (fgets(sendline, MAXLINE, fp) != NULL) {
 		lvl_sendto(sockfd, sendline, strlen(sendline), pservaddr);
 		n = lvl_recvfrom(sockfd, recvline, MAXLINE, NULL);
@@ -38,5 +38,6 @@ main(int argc, char *argv[])
 	servaddr.sin_port = htons(SERV_PORT);
 
 	sockfd = lvl_socket(AF_INET, SOCK_DGRAM, 0);
-	dg_cli(stdin, sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+	dg_cli(stdin, sockfd, (struct sockaddr_in *)&servaddr, sizeof(servaddr));
+	return 0;
 }

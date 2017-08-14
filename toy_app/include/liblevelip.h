@@ -18,7 +18,7 @@
 struct lvlip_sock {
 	struct list_head list;
 	int lvlfd;
-	int fd;			/* fd才是真正用于连接网络 */
+	int fd;			/* fd鎵嶆槸鐪熸鐢ㄤ簬杩炴帴缃戠粶 */
 };
 
 static inline struct lvlip_sock *
